@@ -662,16 +662,36 @@ class MainActivity : AppCompatActivity() {
 
         scorePlayer1 = 0
         scorePlayer2 = 0
-        isPlayer1Serving = true
         gameStarted = false
         gameOver = false
         serveHistory.clear()
-        team1ServePosition = 0
-        team2ServePosition = 0
 
-        // Reset current positions
-        team1CurrentEvenPlayer = playerNames.team1EvenPlayer
-        team2CurrentEvenPlayer = playerNames.team2EvenPlayer
+        // Reset serve positions based on doubles mode
+        if (isDoublesMode) {
+            // Use the configured serve setup from playerNames
+            isPlayer1Serving = (playerNames.firstServeTeam == 1)
+
+            // Reset current positions based on who is configured as even side
+            team1CurrentEvenPlayer = playerNames.team1EvenPlayer
+            team2CurrentEvenPlayer = playerNames.team2EvenPlayer
+
+            if (isPlayer1Serving) {
+                // Team 1 serves first - even side player serves
+                team1ServePosition = playerNames.team1EvenPlayer
+                team2ServePosition = 0 // Team 2 not serving yet
+            } else {
+                // Team 2 serves first - even side player serves
+                team2ServePosition = playerNames.team2EvenPlayer
+                team1ServePosition = 0 // Team 1 not serving yet
+            }
+        } else {
+            // Singles mode - default to Team 1 serving
+            isPlayer1Serving = true
+            team1ServePosition = 0
+            team2ServePosition = 0
+            team1CurrentEvenPlayer = 0
+            team2CurrentEvenPlayer = 0
+        }
 
         player1Button.isEnabled = true
         player2Button.isEnabled = true
