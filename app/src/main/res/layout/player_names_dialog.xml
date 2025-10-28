@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- Horizontal layout for teams and serve setup -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <!-- Left Column: Team Names -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingEnd="8dp">
+
+                <!-- Team 1 Section -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Team 1 Players"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="P1:"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="?android:attr/colorAccent"
+                        android:paddingEnd="4dp" />
+
+                    <EditText
+                        android:id="@+id/team1Player1Input"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Name"
+                        android:textSize="12sp"
+                        android:singleLine="true" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="P2:"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="?android:attr/colorAccent"
+                        android:paddingEnd="4dp" />
+
+                    <EditText
+                        android:id="@+id/team1Player2Input"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Name"
+                        android:textSize="12sp"
+                        android:singleLine="true" />
+                </LinearLayout>
+
+                <!-- Team 2 Section -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Team 2 Players"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="P1:"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="?android:attr/colorAccent"
+                        android:paddingEnd="4dp" />
+
+                    <EditText
+                        android:id="@+id/team2Player1Input"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Name"
+                        android:textSize="12sp"
+                        android:singleLine="true" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="P2:"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="?android:attr/colorAccent"
+                        android:paddingEnd="4dp" />
+
+                    <EditText
+                        android:id="@+id/team2Player2Input"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Name"
+                        android:textSize="12sp"
+                        android:singleLine="true" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Right Column: Serve Setup -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingStart="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Serve Setup"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Team 1 Even Side -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Team 1 Even Side:"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="2dp" />
+
+                <RadioGroup
+                    android:id="@+id/team1EvenPlayerGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="6dp">
+
+                    <RadioButton
+                        android:id="@+id/team1Player1Even"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="P1"
+                        android:textSize="11sp" />
+
+                    <RadioButton
+                        android:id="@+id/team1Player2Even"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="P2"
+                        android:textSize="11sp" />
+                </RadioGroup>
+
+                <!-- Team 2 Even Side -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Team 2 Even Side:"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="2dp" />
+
+                <RadioGroup
+                    android:id="@+id/team2EvenPlayerGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <RadioButton
+                        android:id="@+id/team2Player1Even"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="P1"
+                        android:textSize="11sp" />
+
+                    <RadioButton
+                        android:id="@+id/team2Player2Even"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="P2"
+                        android:textSize="11sp" />
+                </RadioGroup>
+
+                <!-- First Serve -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="First Serve:"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="2dp" />
+
+                <RadioGroup
+                    android:id="@+id/firstServeTeamGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <RadioButton
+                        android:id="@+id/team1FirstServe"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Team 1"
+                        android:textSize="11sp" />
+
+                    <RadioButton
+                        android:id="@+id/team2FirstServe"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Team 2"
+                        android:textSize="11sp" />
+                </RadioGroup>
+
+                <!-- Help Text -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Even side serves first. Players swap sides when scoring consecutively."
+                    android:textSize="10sp"
+                    android:textColor="?android:attr/colorAccent"
+                    android:lineSpacingExtra="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
