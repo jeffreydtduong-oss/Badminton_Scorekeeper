@@ -1380,13 +1380,13 @@ class MainActivity : AppCompatActivity() {
             if (isPlayer1Scored) {
                 servingScore = scorePlayer1
                 receivingScore = scorePlayer2
-                servingPlayerName = player1Name.text.toString()
-                receivingPlayerName = player2Name.text.toString()
+                servingPlayerName = getCurrentServerName()
+                receivingPlayerName = getCurrentReceiverName()
             } else {
                 servingScore = scorePlayer2
                 receivingScore = scorePlayer1
-                servingPlayerName = player2Name.text.toString()
-                receivingPlayerName = player1Name.text.toString()
+                servingPlayerName = getCurrentServerName()
+                receivingPlayerName = getCurrentReceiverName()
             }
 
             if (bonusSoundEnabled && isSixtyNineScore(servingScore, receivingScore)) {
@@ -1400,9 +1400,9 @@ class MainActivity : AppCompatActivity() {
             }
 
             val announcement = if (isGamePointForScoringPlayer(isPlayer1Scored)) {
-                "Game point, $servingScore serving $receivingScore"
+                "Game point, $servingScore - $receivingScore, $servingPlayerName serving $receivingPlayerName"
             } else {
-                "$servingScore serving $receivingScore"
+                "$servingScore - $receivingScore, $servingPlayerName serving $receivingPlayerName"
             }
 
             textToSpeech.speak(announcement, TextToSpeech.QUEUE_FLUSH, null, null)
