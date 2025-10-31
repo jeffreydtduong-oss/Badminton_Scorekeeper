@@ -50,6 +50,7 @@ import android.view.Gravity
 import android.widget.*
 import android.text.TextUtils
 import android.view.LayoutInflater
+import android.view.WindowManager
 
 data class GameState(
     val scorePlayer1: Int,
@@ -73,6 +74,11 @@ data class PlayerNames(
     val team1EvenPlayer: Int = 0, // 0 for Player1, 1 for Player2
     val team2EvenPlayer: Int = 0, // 0 for Player1, 1 for Player2
     val firstServeTeam: Int = 1   // 1 for Team 1, 2 for Team 2
+)
+
+data class Player(
+    val name: String,
+    val isFavorite: Boolean = false
 )
 
 data class GameHistory(
@@ -178,8 +184,6 @@ class MainActivity : AppCompatActivity() {
 
     private var playerNames = PlayerNames()
 
-    private var currentLayout: View? = null
-
     private lateinit var nameInputLayout: LinearLayout
     private lateinit var teamNamesLayout: LinearLayout
     private lateinit var player1Header: LinearLayout
@@ -195,6 +199,13 @@ class MainActivity : AppCompatActivity() {
     private var team1CurrentEvenPlayer: Int = 0 // Tracks who is CURRENTLY on even side
     private var team2CurrentEvenPlayer: Int = 0 // Tracks who is CURRENTLY on even side
 
+    private val playerRoster = mutableListOf<Player>()
+    private val prefsPlayersKey = "playerRoster"
+    private val selectedPlayers = mutableListOf<String>()
+
+    private var currentNameEntryDialog: AlertDialog? = null
+    private var currentDialogView: View? = null
+
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             // Bluetooth event handling
@@ -209,6 +220,7 @@ class MainActivity : AppCompatActivity() {
         hideSystemUI()
         initializeViews()
         loadSavedNames()
+        loadPlayerRoster()
         setupButtonListeners()
         updateScoreDisplay()
         setupKeyboardFocus()
@@ -765,22 +777,98 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "Names saved!", Toast.LENGTH_SHORT).show()
     }
 
+    private fun loadPlayerRoster() {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val json = prefs.getString(prefsPlayersKey, null)
+        if (!json.isNullOrEmpty()) {
+            try {
+                val type = object : TypeToken<List<Player>>() {}.type
+                val loadedPlayers = Gson().fromJson<List<Player>>(json, type)
+                playerRoster.clear()
+                playerRoster.addAll(loadedPlayers)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading player roster: ${e.message}")
+            }
+        }
+
+        // Add default players if empty
+        if (playerRoster.isEmpty()) {
+            playerRoster.addAll(listOf(
+                Player("Player 1"),
+                Player("Player 2"),
+                Player("Player 3"),
+                Player("Player 4")
+            ))
+            savePlayerRoster()
+        }
+    }
+
+    private fun savePlayerRoster() {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val json = Gson().toJson(playerRoster)
+        prefs.edit().putString(prefsPlayersKey, json).apply()
+    }
+
     // Doubles name management
     private fun showNameEntryDialog() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.player_names_dialog, null)
+        currentDialogView = dialogView
 
-        // Initialize name inputs (existing code)
-        val team1Player1Input = dialogView.findViewById<EditText>(R.id.team1Player1Input)
-        val team1Player2Input = dialogView.findViewById<EditText>(R.id.team1Player2Input)
-        val team2Player1Input = dialogView.findViewById<EditText>(R.id.team2Player1Input)
-        val team2Player2Input = dialogView.findViewById<EditText>(R.id.team2Player2Input)
+        // Initialize team preview
+        updateTeamPreview(dialogView)
 
-        team1Player1Input.setText(playerNames.team1Player1)
-        team1Player2Input.setText(playerNames.team1Player2)
-        team2Player1Input.setText(playerNames.team2Player1)
-        team2Player2Input.setText(playerNames.team2Player2)
+        // Setup select players button
+        dialogView.findViewById<Button>(R.id.selectPlayersButton).setOnClickListener {
+            showPlayerSelectionDialog(dialogView)
+        }
 
-        // Initialize serving configuration
+        // Setup add player functionality
+        val newPlayerInput = dialogView.findViewById<EditText>(R.id.newPlayerInput)
+        val addButton = dialogView.findViewById<Button>(R.id.addPlayerButton)
+
+        addButton.setOnClickListener {
+            val newName = newPlayerInput.text.toString().trim()
+            if (newName.isNotEmpty() && playerRoster.none { it.name.equals(newName, true) }) {
+                playerRoster.add(Player(newName))
+                savePlayerRoster()
+                newPlayerInput.text.clear()
+                Toast.makeText(this, "Added $newName", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Please enter a unique name", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Setup even side radio buttons
+        setupServeConfiguration(dialogView)
+
+        currentNameEntryDialog = AlertDialog.Builder(this)
+            .setTitle("Doubles Team Setup")
+            .setView(dialogView)
+            .setPositiveButton("Save") { dialog, which ->
+                saveSelectedPlayers(dialogView)
+                currentNameEntryDialog = null
+                currentDialogView = null
+            }
+            .setNegativeButton("Cancel") { dialog, which ->
+                currentNameEntryDialog = null
+                currentDialogView = null
+            }
+            .setOnDismissListener {
+                currentNameEntryDialog = null
+                currentDialogView = null
+            }
+            .create()
+
+        // Force compact window sizing
+        currentNameEntryDialog?.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.98).toInt(),
+            WindowManager.LayoutParams.WRAP_CONTENT
+        )
+
+        currentNameEntryDialog?.show()
+    }
+
+    private fun setupServeConfiguration(dialogView: View) {
         val team1Player1Even = dialogView.findViewById<RadioButton>(R.id.team1Player1Even)
         val team1Player2Even = dialogView.findViewById<RadioButton>(R.id.team1Player2Even)
         val team2Player1Even = dialogView.findViewById<RadioButton>(R.id.team2Player1Even)
@@ -788,56 +876,257 @@ class MainActivity : AppCompatActivity() {
         val team1FirstServe = dialogView.findViewById<RadioButton>(R.id.team1FirstServe)
         val team2FirstServe = dialogView.findViewById<RadioButton>(R.id.team2FirstServe)
 
-        // Set current values
-        if (playerNames.team1EvenPlayer == 0) {
-            team1Player1Even.isChecked = true
-        } else {
-            team1Player2Even.isChecked = true
+        // Update radio button labels with current player names
+        team1Player1Even.text = playerNames.team1Player1
+        team1Player2Even.text = playerNames.team1Player2
+        team2Player1Even.text = playerNames.team2Player1
+        team2Player2Even.text = playerNames.team2Player2
+
+        // Set radio button states based on current configuration
+        team1FirstServe.isChecked = (playerNames.firstServeTeam == 1)
+        team2FirstServe.isChecked = (playerNames.firstServeTeam == 2)
+        team1Player1Even.isChecked = (playerNames.team1EvenPlayer == 0)
+        team1Player2Even.isChecked = (playerNames.team1EvenPlayer == 1)
+        team2Player1Even.isChecked = (playerNames.team2EvenPlayer == 0)
+        team2Player2Even.isChecked = (playerNames.team2EvenPlayer == 1)
+    }
+
+    private fun updateTeamPreview(dialogView: View) {
+        // Assign first 4 selected players to teams in order
+        val team1Player1 = dialogView.findViewById<TextView>(R.id.team1Player1Preview)
+        val team1Player2 = dialogView.findViewById<TextView>(R.id.team1Player2Preview)
+        val team2Player1 = dialogView.findViewById<TextView>(R.id.team2Player1Preview)
+        val team2Player2 = dialogView.findViewById<TextView>(R.id.team2Player2Preview)
+
+        // Update the preview text - use playerNames instead of selectedPlayers for consistency
+        team1Player1.text = playerNames.team1Player1
+        team1Player2.text = playerNames.team1Player2
+        team2Player1.text = playerNames.team2Player1
+        team2Player2.text = playerNames.team2Player2
+
+        // Update the radio button labels to show actual player names
+        val team1Player1Even = dialogView.findViewById<RadioButton>(R.id.team1Player1Even)
+        val team1Player2Even = dialogView.findViewById<RadioButton>(R.id.team1Player2Even)
+        val team2Player1Even = dialogView.findViewById<RadioButton>(R.id.team2Player1Even)
+        val team2Player2Even = dialogView.findViewById<RadioButton>(R.id.team2Player2Even)
+
+        team1Player1Even.text = playerNames.team1Player1
+        team1Player2Even.text = playerNames.team1Player2
+        team2Player1Even.text = playerNames.team2Player1
+        team2Player2Even.text = playerNames.team2Player2
+    }
+
+    private fun saveSelectedPlayers(dialogView: View) {
+        if (selectedPlayers.size < 4) {
+            Toast.makeText(this, "Please select exactly 4 players", Toast.LENGTH_SHORT).show()
+            return
         }
 
-        if (playerNames.team2EvenPlayer == 0) {
-            team2Player1Even.isChecked = true
-        } else {
-            team2Player2Even.isChecked = true
+        // Get even side selections from the dialog
+        val team1EvenPlayer = if (dialogView.findViewById<RadioButton>(R.id.team1Player1Even).isChecked) 0 else 1
+        val team2EvenPlayer = if (dialogView.findViewById<RadioButton>(R.id.team2Player1Even).isChecked) 0 else 1
+        val firstServeTeam = if (dialogView.findViewById<RadioButton>(R.id.team1FirstServe).isChecked) 1 else 2
+
+        playerNames = PlayerNames(
+            team1Player1 = selectedPlayers[0],
+            team1Player2 = selectedPlayers[1],
+            team2Player1 = selectedPlayers[2],
+            team2Player2 = selectedPlayers[3],
+            isDoubles = true,
+            team1EvenPlayer = team1EvenPlayer,
+            team2EvenPlayer = team2EvenPlayer,
+            firstServeTeam = firstServeTeam
+        )
+
+        savePlayerNamesToPrefs()
+        initializeServingState()
+        updatePlayerDisplay()
+        Toast.makeText(this, "Teams and serve setup saved!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showPlayerSelectionDialog(parentDialogView: View) {
+        val selectionView = LayoutInflater.from(this).inflate(R.layout.player_selection_dialog, null)
+        val playerListView = selectionView.findViewById<ListView>(R.id.playerListView)
+        val uncheckAllButton = selectionView.findViewById<Button>(R.id.uncheckAllButton)
+        val deleteButton = selectionView.findViewById<Button>(R.id.deleteButton)
+
+        // Create adapter as a variable so we can refresh it
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_multiple_choice,
+            playerRoster.map { it.name })
+        playerListView.adapter = adapter
+        playerListView.choiceMode = ListView.CHOICE_MODE_MULTIPLE
+
+        // Track selection order
+        val selectionOrder = mutableListOf<String>()
+
+        // Pre-select currently selected players and maintain selection order
+        for (i in 0 until playerRoster.size) {
+            val playerName = playerRoster[i].name
+            if (selectedPlayers.contains(playerName)) {
+                playerListView.setItemChecked(i, true)
+                // Add to selection order if not already there
+                if (!selectionOrder.contains(playerName)) {
+                    selectionOrder.add(playerName)
+                }
+            }
         }
 
-        if (playerNames.firstServeTeam == 1) {
-            team1FirstServe.isChecked = true
-        } else {
-            team2FirstServe.isChecked = true
+        // Set up button listeners
+        uncheckAllButton.setOnClickListener {
+            // Uncheck all items
+            for (i in 0 until playerRoster.size) {
+                playerListView.setItemChecked(i, false)
+            }
+            selectedPlayers.clear()
+            selectionOrder.clear()
         }
 
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Enter Doubles Team Names")
-            .setView(dialogView)
-            .setPositiveButton("Save") { dialog, which ->
-                // Save names
-                playerNames = PlayerNames(
-                    team1Player1 = team1Player1Input.text.toString().trim(),
-                    team1Player2 = team1Player2Input.text.toString().trim(),
-                    team2Player1 = team2Player1Input.text.toString().trim(),
-                    team2Player2 = team2Player2Input.text.toString().trim(),
-                    isDoubles = true,
-                    team1EvenPlayer = if (team1Player1Even.isChecked) 0 else 1,
-                    team2EvenPlayer = if (team2Player1Even.isChecked) 0 else 1,
-                    firstServeTeam = if (team1FirstServe.isChecked) 1 else 2
-                )
+        // Track checkbox changes to maintain selection order
+        playerListView.setOnItemClickListener { parent, view, position, id ->
+            val playerName = playerRoster[position].name
+            val isChecked = playerListView.isItemChecked(position)
 
-                // Set default names if empty
-                if (playerNames.team1Player1.isEmpty()) playerNames = playerNames.copy(team1Player1 = "P1")
-                if (playerNames.team1Player2.isEmpty()) playerNames = playerNames.copy(team1Player2 = "P2")
-                if (playerNames.team2Player1.isEmpty()) playerNames = playerNames.copy(team2Player1 = "P3")
-                if (playerNames.team2Player2.isEmpty()) playerNames = playerNames.copy(team2Player2 = "P4")
+            if (isChecked) {
+                // Player was checked - add to selection order
+                if (!selectionOrder.contains(playerName) && selectionOrder.size < 4) {
+                    selectionOrder.add(playerName)
+                }
+            } else {
+                // Player was unchecked - remove from selection order
+                selectionOrder.remove(playerName)
+            }
 
-                savePlayerNamesToPrefs()
-                initializeServingState()
-                updatePlayerDisplay()
-                Toast.makeText(this, "Doubles names and serve setup saved!", Toast.LENGTH_SHORT).show()
+            // Update visual feedback if needed
+            if (selectionOrder.size > 4) {
+                // This shouldn't happen due to the check above, but just in case
+                selectionOrder.removeAt(selectionOrder.size - 1)
+                playerListView.setItemChecked(position, false)
+                Toast.makeText(this, "Maximum 4 players allowed", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        deleteButton.setOnClickListener {
+            // Delete selected players and refresh the list
+            val playersToDelete = mutableListOf<Player>()
+
+            // Find which players are checked for deletion
+            for (i in 0 until playerRoster.size) {
+                if (playerListView.isItemChecked(i)) {
+                    playersToDelete.add(playerRoster[i])
+                }
+            }
+
+            if (playersToDelete.isEmpty()) {
+                Toast.makeText(this, "No players selected for deletion", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Show confirmation dialog
+            AlertDialog.Builder(this)
+                .setTitle("Delete Players")
+                .setMessage("Delete ${playersToDelete.size} player(s)?\n\n${playersToDelete.joinToString("\n") { it.name }}")
+                .setPositiveButton("Delete") { dialog, which ->
+                    // Remove from roster
+                    playerRoster.removeAll(playersToDelete)
+
+                    // Remove from selected players and selection order
+                    playersToDelete.forEach { player ->
+                        selectedPlayers.remove(player.name)
+                        selectionOrder.remove(player.name)
+                    }
+
+                    // Save changes
+                    savePlayerRoster()
+
+                    // Refresh the adapter
+                    adapter.clear()
+                    adapter.addAll(playerRoster.map { it.name })
+                    adapter.notifyDataSetChanged()
+
+                    // Update check states for remaining players
+                    for (i in 0 until playerRoster.size) {
+                        playerListView.setItemChecked(i, selectedPlayers.contains(playerRoster[i].name))
+                    }
+
+                    Toast.makeText(this, "Players deleted", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        val selectionDialog = AlertDialog.Builder(this)
+            .setView(selectionView)
+            .setPositiveButton("OK") { dialog, which ->
+                // Get selected players in the order they were selected
+                selectedPlayers.clear()
+                selectedPlayers.addAll(selectionOrder)
+
+                // If we have exactly 4 players, assign them to teams in selection order
+                if (selectedPlayers.size == 4) {
+                    playerNames = playerNames.copy(
+                        team1Player1 = selectedPlayers[0], // First selected = Team1 Player1
+                        team1Player2 = selectedPlayers[1], // Second selected = Team1 Player2
+                        team2Player1 = selectedPlayers[2], // Third selected = Team2 Player1
+                        team2Player2 = selectedPlayers[3]  // Fourth selected = Team2 Player2
+                    )
+                }
+
+                updateTeamPreview(parentDialogView)
+                // Also update the serve configuration to reflect the new names
+                setupServeConfiguration(parentDialogView)
             }
             .setNegativeButton("Cancel", null)
             .create()
 
-        dialog.show()
+        // Calculate optimal height for 10+ items
+        val displayMetrics = resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+        val optimalHeight = (screenHeight * 0.75).toInt() // 75% of screen height
+
+        selectionDialog.window?.setLayout(
+            (displayMetrics.widthPixels * 0.95).toInt(),
+            optimalHeight
+        )
+
+        selectionDialog.show()
+    }
+
+    private fun deleteSelectedPlayers(playerListView: ListView, parentDialogView: View) {
+        val playersToDelete = mutableListOf<Player>()
+
+        // Find which players are checked for deletion
+        for (i in 0 until playerRoster.size) {
+            if (playerListView.isItemChecked(i)) {
+                playersToDelete.add(playerRoster[i])
+            }
+        }
+
+        if (playersToDelete.isEmpty()) {
+            Toast.makeText(this, "No players selected for deletion", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Show confirmation dialog
+        AlertDialog.Builder(this)
+            .setTitle("Delete Players")
+            .setMessage("Delete ${playersToDelete.size} player(s)?\n\n${playersToDelete.joinToString("\n") { it.name }}")
+            .setPositiveButton("Delete") { dialog, which ->
+                // Remove from roster
+                playerRoster.removeAll(playersToDelete)
+
+                // Remove from selected players if they were selected
+                selectedPlayers.removeAll(playersToDelete.map { it.name })
+
+                // Save changes
+                savePlayerRoster()
+
+                // Refresh the dialog
+                showPlayerSelectionDialog(parentDialogView)
+
+                Toast.makeText(this, "Players deleted", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun initializeServingState() {
@@ -912,6 +1201,19 @@ class MainActivity : AppCompatActivity() {
             val tempCurrentEven = team1CurrentEvenPlayer
             team1CurrentEvenPlayer = team2CurrentEvenPlayer
             team2CurrentEvenPlayer = tempCurrentEven
+
+            // Update the selectedPlayers list to reflect the swap
+            if (selectedPlayers.size >= 4) {
+                val tempSelected = selectedPlayers.toMutableList()
+                selectedPlayers.clear()
+                // Swap team assignments: Team1 P1/P2 become Team2 P1/P2 and vice versa
+                selectedPlayers.addAll(listOf(
+                    tempSelected[2], // Team2 P1 becomes Team1 P1
+                    tempSelected[3], // Team2 P2 becomes Team1 P2
+                    tempSelected[0], // Team1 P1 becomes Team2 P1
+                    tempSelected[1]  // Team1 P2 becomes Team2 P2
+                ))
+            }
         } else {
             // Singles mode - swap player names only
             playerNames = playerNames.copy(
@@ -921,11 +1223,35 @@ class MainActivity : AppCompatActivity() {
 
             // Swap serving
             isPlayer1Serving = !isPlayer1Serving
+
+            // Update selectedPlayers for singles (though it shouldn't matter in singles)
+            if (selectedPlayers.size >= 2) {
+                val tempSelected = selectedPlayers.toMutableList()
+                selectedPlayers.clear()
+                selectedPlayers.addAll(listOf(
+                    tempSelected[1], // Player2 becomes Player1
+                    tempSelected[0]  // Player1 becomes Player2
+                ))
+            }
         }
 
         updatePlayerDisplay()
         savePlayerNamesToPrefs()
+
+        // Update the dialog if it's open
+        updateNameEntryDialog()
+
         Toast.makeText(this, "Teams swapped!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun updateNameEntryDialog() {
+        currentDialogView?.let { dialogView ->
+            // Update team preview
+            updateTeamPreview(dialogView)
+
+            // Update serve configuration
+            setupServeConfiguration(dialogView)
+        }
     }
 
     // Winning points methods
