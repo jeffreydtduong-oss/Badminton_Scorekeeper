@@ -1,72 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
     android:padding="8dp">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Select 4 Players (in playing order)"
-        android:textStyle="bold"
-        android:textSize="14sp"
-        android:gravity="center"
-        android:layout_marginBottom="4dp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Order: 1st=Team1 P1, 2nd=Team1 P2, 3rd=Team2 P1, 4th=Team2 P2"
-        android:textSize="10sp"
-        android:textColor="#666666"
-        android:gravity="center"
-        android:layout_marginBottom="8dp" />
-
-    <!-- Compact Button Row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginBottom="6dp">
+        android:orientation="vertical">
 
-        <Button
-            android:id="@+id/uncheckAllButton"
-            android:layout_width="0dp"
-            android:layout_height="32dp"
-            android:layout_weight="1"
-            android:text="Uncheck All"
-            android:textSize="11sp"
-            android:layout_marginEnd="2dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select 4 Players (in playing order)"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:layout_marginBottom="4dp" />
 
-        <Button
-            android:id="@+id/deleteButton"
-            android:layout_width="0dp"
-            android:layout_height="32dp"
-            android:layout_weight="1"
-            android:text="Delete Selected"
-            android:textSize="11sp"
-            android:layout_marginStart="2dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Order: 1st=Team1 P1, 2nd=Team1 P2, 3rd=Team2 P1, 4th=Team2 P2"
+            android:textSize="10sp"
+            android:textColor="#666666"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Compact Button Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="6dp">
+
+            <Button
+                android:id="@+id/uncheckAllButton"
+                android:layout_width="0dp"
+                android:layout_height="35dp"
+                android:layout_weight="1"
+                android:text="Uncheck All"
+                android:textSize="11sp"
+                android:layout_marginEnd="2dp" />
+
+            <Button
+                android:id="@+id/deleteButton"
+                android:layout_width="0dp"
+                android:layout_height="35dp"
+                android:layout_weight="1"
+                android:text="Delete Selected"
+                android:textSize="11sp"
+                android:layout_marginStart="2dp" />
+
+        </LinearLayout>
+
+        <!-- Dynamic height ListView -->
+        <ListView
+            android:id="@+id/playerListView"
+            android:layout_width="match_parent"
+            android:layout_height="388dp"
+            android:background="@android:color/white"
+            android:choiceMode="multipleChoice"
+            android:fastScrollEnabled="true"
+            android:maxHeight="400dp"
+            android:minHeight="200dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Selected: Team1 P1 → Team1 P2 → Team2 P1 → Team2 P2"
+            android:textSize="10sp"
+            android:textColor="#666666"
+            android:gravity="center"
+            android:layout_marginTop="6dp" />
 
     </LinearLayout>
-
-    <!-- Player List optimized for 10+ visible items -->
-    <ListView
-        android:id="@+id/playerListView"
-        android:layout_width="match_parent"
-        android:layout_height="280dp"
-        android:background="@android:color/white"
-        android:choiceMode="multipleChoice"
-        android:fastScrollEnabled="true" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Selected: Team1 P1 → Team1 P2 → Team2 P1 → Team2 P2"
-        android:textSize="10sp"
-        android:textColor="#666666"
-        android:gravity="center"
-        android:layout_marginTop="6dp" />
-
-</LinearLayout>
+</ScrollView>

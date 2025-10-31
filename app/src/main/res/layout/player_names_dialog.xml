@@ -145,8 +145,8 @@
 
                 <Button
                     android:id="@+id/addPlayerButton"
-                    android:layout_width="45dp"
-                    android:layout_height="30dp"
+                    android:layout_width="70dp"
+                    android:layout_height="35dp"
                     android:text="Add"
                     android:textSize="10sp"
                     android:layout_marginStart="2dp" />
