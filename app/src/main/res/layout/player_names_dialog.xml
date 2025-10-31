@@ -156,6 +156,7 @@
 
         <!-- Right Column: Serve Configuration -->
         <LinearLayout
+            android:id="@+id/serveConfigLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -165,11 +166,11 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Serve Setup"
-                android:textStyle="bold"
-                android:textSize="14sp"
+                android:layout_marginBottom="6dp"
                 android:gravity="center"
-                android:layout_marginBottom="6dp" />
+                android:text="Serve Setup"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
             <LinearLayout
                 android:layout_width="match_parent"

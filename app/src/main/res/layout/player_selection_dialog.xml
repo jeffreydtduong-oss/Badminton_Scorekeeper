@@ -59,11 +59,10 @@
         <ListView
             android:id="@+id/playerListView"
             android:layout_width="match_parent"
-            android:layout_height="388dp"
+            android:layout_height="600dp"
             android:background="@android:color/white"
             android:choiceMode="multipleChoice"
             android:fastScrollEnabled="true"
-            android:maxHeight="400dp"
             android:minHeight="200dp" />
 
         <TextView

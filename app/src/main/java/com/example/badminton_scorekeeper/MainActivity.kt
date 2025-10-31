@@ -358,47 +358,29 @@ class MainActivity : AppCompatActivity() {
         }
 
         player1Name.setOnClickListener {
-            if (isDoublesMode) {
-                showNameEntryDialog()
-            } else {
-                showNameEditMode()
-                player1NameInput.requestFocus()
-            }
+            showNameEntryDialog(isDoublesMode)
         }
 
         player2Name.setOnClickListener {
-            if (isDoublesMode) {
-                showNameEntryDialog()
-            } else {
-                showNameEditMode()
-                player2NameInput.requestFocus()
-            }
+            showNameEntryDialog(isDoublesMode)
         }
 
         // Also update the team name click listeners
         team1Header.setOnClickListener {
-            if (isDoublesMode) {
-                showNameEntryDialog()
-            }
+            showNameEntryDialog(isDoublesMode)
         }
 
         team2Header.setOnClickListener {
-            if (isDoublesMode) {
-                showNameEntryDialog()
-            }
+            showNameEntryDialog(isDoublesMode)
         }
 
         // Make sure the team names themselves are also clickable
         team1Name.setOnClickListener {
-            if (isDoublesMode) {
-                showNameEntryDialog()
-            }
+            showNameEntryDialog(isDoublesMode)
         }
 
         team2Name.setOnClickListener {
-            if (isDoublesMode) {
-                showNameEntryDialog()
-            }
+            showNameEntryDialog(isDoublesMode)
         }
 
         winningPointsButton.setOnClickListener {
@@ -809,17 +791,24 @@ class MainActivity : AppCompatActivity() {
         prefs.edit().putString(prefsPlayersKey, json).apply()
     }
 
-    // Doubles name management
-    private fun showNameEntryDialog() {
+    private fun showNameEntryDialog(isDoublesMode: Boolean) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.player_names_dialog, null)
         currentDialogView = dialogView
 
+        // Hide serve configuration for singles mode
+        val serveConfigLayout = dialogView.findViewById<LinearLayout>(R.id.serveConfigLayout)
+        if (!isDoublesMode) {
+            serveConfigLayout.visibility = View.GONE
+        } else {
+            serveConfigLayout.visibility = View.VISIBLE
+        }
+
         // Initialize team preview
-        updateTeamPreview(dialogView)
+        updateTeamPreview(dialogView, isDoublesMode)
 
         // Setup select players button
         dialogView.findViewById<Button>(R.id.selectPlayersButton).setOnClickListener {
-            showPlayerSelectionDialog(dialogView)
+            showPlayerSelectionDialog(dialogView, isDoublesMode)
         }
 
         // Setup add player functionality
@@ -838,14 +827,18 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Setup even side radio buttons
-        setupServeConfiguration(dialogView)
+        // Setup even side radio buttons (only for doubles)
+        if (isDoublesMode) {
+            setupServeConfiguration(dialogView)
+        }
+
+        val dialogTitle = if (isDoublesMode) "Doubles Team Setup" else "Singles Player Setup"
 
         currentNameEntryDialog = AlertDialog.Builder(this)
-            .setTitle("Doubles Team Setup")
+            .setTitle(dialogTitle)
             .setView(dialogView)
             .setPositiveButton("Save") { dialog, which ->
-                saveSelectedPlayers(dialogView)
+                saveSelectedPlayers(dialogView, isDoublesMode)
                 currentNameEntryDialog = null
                 currentDialogView = null
             }
@@ -891,60 +884,161 @@ class MainActivity : AppCompatActivity() {
         team2Player2Even.isChecked = (playerNames.team2EvenPlayer == 1)
     }
 
-    private fun updateTeamPreview(dialogView: View) {
-        // Assign first 4 selected players to teams in order
+    private fun updateTeamPreview(dialogView: View, isDoublesMode: Boolean) {
         val team1Player1 = dialogView.findViewById<TextView>(R.id.team1Player1Preview)
         val team1Player2 = dialogView.findViewById<TextView>(R.id.team1Player2Preview)
         val team2Player1 = dialogView.findViewById<TextView>(R.id.team2Player1Preview)
         val team2Player2 = dialogView.findViewById<TextView>(R.id.team2Player2Preview)
 
-        // Update the preview text - use playerNames instead of selectedPlayers for consistency
-        team1Player1.text = playerNames.team1Player1
-        team1Player2.text = playerNames.team1Player2
-        team2Player1.text = playerNames.team2Player1
-        team2Player2.text = playerNames.team2Player2
+        if (isDoublesMode) {
+            // Show all 4 players for doubles
+            team1Player1.text = playerNames.team1Player1
+            team1Player2.text = playerNames.team1Player2
+            team2Player1.text = playerNames.team2Player1
+            team2Player2.text = playerNames.team2Player2
 
-        // Update the radio button labels to show actual player names
-        val team1Player1Even = dialogView.findViewById<RadioButton>(R.id.team1Player1Even)
-        val team1Player2Even = dialogView.findViewById<RadioButton>(R.id.team1Player2Even)
-        val team2Player1Even = dialogView.findViewById<RadioButton>(R.id.team2Player1Even)
-        val team2Player2Even = dialogView.findViewById<RadioButton>(R.id.team2Player2Even)
+            team1Player2.visibility = View.VISIBLE
+            team2Player2.visibility = View.VISIBLE
+        } else {
+            // Show only 2 players for singles
+            team1Player1.text = playerNames.team1Player1
+            team2Player1.text = playerNames.team2Player1
 
-        team1Player1Even.text = playerNames.team1Player1
-        team1Player2Even.text = playerNames.team1Player2
-        team2Player1Even.text = playerNames.team2Player1
-        team2Player2Even.text = playerNames.team2Player2
+            // Hide the second player slots or show them as empty
+            team1Player2.visibility = View.GONE
+            team2Player2.visibility = View.GONE
+        }
+
+        // Update the radio button labels to show actual player names (only for doubles)
+        if (isDoublesMode) {
+            val team1Player1Even = dialogView.findViewById<RadioButton>(R.id.team1Player1Even)
+            val team1Player2Even = dialogView.findViewById<RadioButton>(R.id.team1Player2Even)
+            val team2Player1Even = dialogView.findViewById<RadioButton>(R.id.team2Player1Even)
+            val team2Player2Even = dialogView.findViewById<RadioButton>(R.id.team2Player2Even)
+
+            team1Player1Even.text = playerNames.team1Player1
+            team1Player2Even.text = playerNames.team1Player2
+            team2Player1Even.text = playerNames.team2Player1
+            team2Player2Even.text = playerNames.team2Player2
+        }
     }
 
-    private fun saveSelectedPlayers(dialogView: View) {
-        if (selectedPlayers.size < 4) {
-            Toast.makeText(this, "Please select exactly 4 players", Toast.LENGTH_SHORT).show()
+    private fun saveSelectedPlayers(dialogView: View, isDoublesMode: Boolean) {
+        val requiredPlayers = if (isDoublesMode) 4 else 2
+
+        if (selectedPlayers.size < requiredPlayers) {
+            val modeText = if (isDoublesMode) "4 players" else "2 players"
+            Toast.makeText(this, "Please select exactly $modeText", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Get even side selections from the dialog
-        val team1EvenPlayer = if (dialogView.findViewById<RadioButton>(R.id.team1Player1Even).isChecked) 0 else 1
-        val team2EvenPlayer = if (dialogView.findViewById<RadioButton>(R.id.team2Player1Even).isChecked) 0 else 1
-        val firstServeTeam = if (dialogView.findViewById<RadioButton>(R.id.team1FirstServe).isChecked) 1 else 2
+        if (isDoublesMode) {
+            // Get even side selections from the dialog
+            val team1EvenPlayer = if (dialogView.findViewById<RadioButton>(R.id.team1Player1Even).isChecked) 0 else 1
+            val team2EvenPlayer = if (dialogView.findViewById<RadioButton>(R.id.team2Player1Even).isChecked) 0 else 1
+            val firstServeTeam = if (dialogView.findViewById<RadioButton>(R.id.team1FirstServe).isChecked) 1 else 2
 
-        playerNames = PlayerNames(
-            team1Player1 = selectedPlayers[0],
-            team1Player2 = selectedPlayers[1],
-            team2Player1 = selectedPlayers[2],
-            team2Player2 = selectedPlayers[3],
-            isDoubles = true,
-            team1EvenPlayer = team1EvenPlayer,
-            team2EvenPlayer = team2EvenPlayer,
-            firstServeTeam = firstServeTeam
-        )
+            playerNames = PlayerNames(
+                team1Player1 = selectedPlayers[0],
+                team1Player2 = selectedPlayers[1],
+                team2Player1 = selectedPlayers[2],
+                team2Player2 = selectedPlayers[3],
+                isDoubles = true,
+                team1EvenPlayer = team1EvenPlayer,
+                team2EvenPlayer = team2EvenPlayer,
+                firstServeTeam = firstServeTeam
+            )
+
+            // RESET POSITIONS BASED ON CURRENT SCORE AND NEW CONFIGURATION
+            saveCurrentState()
+
+            // Reset current positions to match new configuration
+            team1CurrentEvenPlayer = team1EvenPlayer
+            team2CurrentEvenPlayer = team2EvenPlayer
+            isPlayer1Serving = (firstServeTeam == 1)
+
+            // RECALCULATE CURRENT SERVE POSITIONS BASED ON SCORE
+            recalculateServePositions()
+
+        } else {
+            // For singles, no serve configuration needed
+            playerNames = PlayerNames(
+                team1Player1 = selectedPlayers[0],
+                team2Player1 = selectedPlayers[1],
+                isDoubles = false
+            )
+
+            saveCurrentState()
+            isPlayer1Serving = true
+            team1ServePosition = 0
+            team2ServePosition = 0
+        }
 
         savePlayerNamesToPrefs()
-        initializeServingState()
         updatePlayerDisplay()
-        Toast.makeText(this, "Teams and serve setup saved!", Toast.LENGTH_SHORT).show()
+        val modeText = if (isDoublesMode) "Teams and positions recalculated!" else "Players saved!"
+        Toast.makeText(this, modeText, Toast.LENGTH_SHORT).show()
     }
 
-    private fun showPlayerSelectionDialog(parentDialogView: View) {
+    private fun recalculateServePositions() {
+        if (!isDoublesMode) return
+
+        // Determine which team should be serving based on who scored last
+        // If both scores are 0, use the firstServeTeam configuration
+        if (scorePlayer1 == 0 && scorePlayer2 == 0) {
+            // Starting position
+            isPlayer1Serving = (playerNames.firstServeTeam == 1)
+            if (isPlayer1Serving) {
+                team1ServePosition = team1CurrentEvenPlayer
+                team2ServePosition = 0
+            } else {
+                team2ServePosition = team2CurrentEvenPlayer
+                team1ServePosition = 0
+            }
+            return
+        }
+
+        // If game is in progress, determine serve positions based on current score
+        val totalPoints = scorePlayer1 + scorePlayer2
+
+        // Determine serving team based on who served first and total points
+        val initialServeTeam = (playerNames.firstServeTeam == 1)
+        val serveChanges = totalPoints / 2 // Every 2 points, serve changes (in doubles)
+
+        // Determine current serving team
+        isPlayer1Serving = (initialServeTeam == (serveChanges % 2 == 0))
+
+        // Calculate serve positions based on current score
+        if (isPlayer1Serving) {
+            // Team 1 is serving - position depends on Team 1's score
+            team1ServePosition = if (scorePlayer1 % 2 == 0) {
+                team1CurrentEvenPlayer  // Even score = even side serves
+            } else {
+                (team1CurrentEvenPlayer + 1) % 2  // Odd score = odd side serves
+            }
+            // Team 2 receiver is diagonal to server
+            team2ServePosition = if (scorePlayer1 % 2 == 0) {
+                team2CurrentEvenPlayer  // Even score = even side receives
+            } else {
+                (team2CurrentEvenPlayer + 1) % 2  // Odd score = odd side receives
+            }
+        } else {
+            // Team 2 is serving - position depends on Team 2's score
+            team2ServePosition = if (scorePlayer2 % 2 == 0) {
+                team2CurrentEvenPlayer  // Even score = even side serves
+            } else {
+                (team2CurrentEvenPlayer + 1) % 2  // Odd score = odd side serves
+            }
+            // Team 1 receiver is diagonal to server
+            team1ServePosition = if (scorePlayer2 % 2 == 0) {
+                team1CurrentEvenPlayer  // Even score = even side receives
+            } else {
+                (team1CurrentEvenPlayer + 1) % 2  // Odd score = odd side receives
+            }
+        }
+    }
+
+    private fun showPlayerSelectionDialog(parentDialogView: View, isDoublesMode: Boolean) {
         val selectionView = LayoutInflater.from(this).inflate(R.layout.player_selection_dialog, null)
         val playerListView = selectionView.findViewById<ListView>(R.id.playerListView)
         val uncheckAllButton = selectionView.findViewById<Button>(R.id.uncheckAllButton)
@@ -988,20 +1082,18 @@ class MainActivity : AppCompatActivity() {
 
             if (isChecked) {
                 // Player was checked - add to selection order
-                if (!selectionOrder.contains(playerName) && selectionOrder.size < 4) {
+                val maxPlayers = if (isDoublesMode) 4 else 2
+                if (!selectionOrder.contains(playerName) && selectionOrder.size < maxPlayers) {
                     selectionOrder.add(playerName)
+                } else if (selectionOrder.size >= maxPlayers) {
+                    // Too many players selected
+                    playerListView.setItemChecked(position, false)
+                    val modeText = if (isDoublesMode) "4 players" else "2 players"
+                    Toast.makeText(this, "Maximum $modeText allowed", Toast.LENGTH_SHORT).show()
                 }
             } else {
                 // Player was unchecked - remove from selection order
                 selectionOrder.remove(playerName)
-            }
-
-            // Update visual feedback if needed
-            if (selectionOrder.size > 4) {
-                // This shouldn't happen due to the check above, but just in case
-                selectionOrder.removeAt(selectionOrder.size - 1)
-                playerListView.setItemChecked(position, false)
-                Toast.makeText(this, "Maximum 4 players allowed", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -1061,19 +1153,33 @@ class MainActivity : AppCompatActivity() {
                 selectedPlayers.clear()
                 selectedPlayers.addAll(selectionOrder)
 
-                // If we have exactly 4 players, assign them to teams in selection order
-                if (selectedPlayers.size == 4) {
-                    playerNames = playerNames.copy(
-                        team1Player1 = selectedPlayers[0], // First selected = Team1 Player1
-                        team1Player2 = selectedPlayers[1], // Second selected = Team1 Player2
-                        team2Player1 = selectedPlayers[2], // Third selected = Team2 Player1
-                        team2Player2 = selectedPlayers[3]  // Fourth selected = Team2 Player2
-                    )
+                if (isDoublesMode) {
+                    // For doubles: assign 4 players to teams
+                    if (selectedPlayers.size == 4) {
+                        playerNames = playerNames.copy(
+                            team1Player1 = selectedPlayers[0],
+                            team1Player2 = selectedPlayers[1],
+                            team2Player1 = selectedPlayers[2],
+                            team2Player2 = selectedPlayers[3],
+                            isDoubles = true
+                        )
+                    }
+                } else {
+                    // For singles: assign 2 players
+                    if (selectedPlayers.size == 2) {
+                        playerNames = playerNames.copy(
+                            team1Player1 = selectedPlayers[0],
+                            team2Player1 = selectedPlayers[1],
+                            isDoubles = false
+                        )
+                    }
                 }
 
-                updateTeamPreview(parentDialogView)
-                // Also update the serve configuration to reflect the new names
-                setupServeConfiguration(parentDialogView)
+                updateTeamPreview(parentDialogView, isDoublesMode)
+                // Also update the serve configuration to reflect the new names (only for doubles)
+                if (isDoublesMode) {
+                    setupServeConfiguration(parentDialogView)
+                }
             }
             .setNegativeButton("Cancel", null)
             .create()
@@ -1121,7 +1227,7 @@ class MainActivity : AppCompatActivity() {
                 savePlayerRoster()
 
                 // Refresh the dialog
-                showPlayerSelectionDialog(parentDialogView)
+                showPlayerSelectionDialog(parentDialogView, isDoublesMode)
 
                 Toast.makeText(this, "Players deleted", Toast.LENGTH_SHORT).show()
             }
@@ -1247,7 +1353,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateNameEntryDialog() {
         currentDialogView?.let { dialogView ->
             // Update team preview
-            updateTeamPreview(dialogView)
+            updateTeamPreview(dialogView, isDoublesMode)
 
             // Update serve configuration
             setupServeConfiguration(dialogView)
