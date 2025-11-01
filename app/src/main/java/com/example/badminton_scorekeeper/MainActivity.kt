@@ -862,26 +862,76 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupServeConfiguration(dialogView: View) {
-        val team1Player1Even = dialogView.findViewById<RadioButton>(R.id.team1Player1Even)
-        val team1Player2Even = dialogView.findViewById<RadioButton>(R.id.team1Player2Even)
-        val team2Player1Even = dialogView.findViewById<RadioButton>(R.id.team2Player1Even)
-        val team2Player2Even = dialogView.findViewById<RadioButton>(R.id.team2Player2Even)
-        val team1FirstServe = dialogView.findViewById<RadioButton>(R.id.team1FirstServe)
-        val team2FirstServe = dialogView.findViewById<RadioButton>(R.id.team2FirstServe)
+        val serverSpinner = dialogView.findViewById<Spinner>(R.id.serverSpinner)
+        val receiverSpinner = dialogView.findViewById<Spinner>(R.id.receiverSpinner)
 
-        // Update radio button labels with current player names
-        team1Player1Even.text = playerNames.team1Player1
-        team1Player2Even.text = playerNames.team1Player2
-        team2Player1Even.text = playerNames.team2Player1
-        team2Player2Even.text = playerNames.team2Player2
+        // All possible players
+        val team1Players = listOf(playerNames.team1Player1, playerNames.team1Player2)
+        val team2Players = listOf(playerNames.team2Player1, playerNames.team2Player2)
+        val allPlayers = team1Players + team2Players
 
-        // Set radio button states based on current configuration
-        team1FirstServe.isChecked = (playerNames.firstServeTeam == 1)
-        team2FirstServe.isChecked = (playerNames.firstServeTeam == 2)
-        team1Player1Even.isChecked = (playerNames.team1EvenPlayer == 0)
-        team1Player2Even.isChecked = (playerNames.team1EvenPlayer == 1)
-        team2Player1Even.isChecked = (playerNames.team2EvenPlayer == 0)
-        team2Player2Even.isChecked = (playerNames.team2EvenPlayer == 1)
+        // Create adapters
+        val serverAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, allPlayers)
+        val receiverAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, ArrayList<String>())
+
+        serverAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        receiverAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+
+        serverSpinner.adapter = serverAdapter
+        receiverSpinner.adapter = receiverAdapter
+
+        // Function to update receiver options based on selected server
+        fun updateReceiverOptions() {
+            val selectedServer = serverSpinner.selectedItem as? String
+            val currentReceiver = receiverSpinner.selectedItem as? String
+
+            receiverAdapter.clear()
+
+            if (selectedServer != null) {
+                // Determine which team the server is on
+                val isServerTeam1 = team1Players.contains(selectedServer)
+                val receiverOptions = if (isServerTeam1) team2Players else team1Players
+
+                receiverAdapter.addAll(receiverOptions)
+                receiverAdapter.notifyDataSetChanged()
+
+                // Try to maintain current receiver selection if it's still valid
+                if (currentReceiver != null && receiverOptions.contains(currentReceiver)) {
+                    val receiverPosition = receiverAdapter.getPosition(currentReceiver)
+                    if (receiverPosition >= 0) receiverSpinner.setSelection(receiverPosition)
+                } else if (receiverOptions.isNotEmpty()) {
+                    // Select first available receiver if current selection is no longer valid
+                    receiverSpinner.setSelection(0)
+                }
+            }
+        }
+
+        // Set current server
+        val currentServer = getCurrentServerName()
+        val currentReceiver = getCurrentReceiverName()
+
+        // Set server selection
+        val serverIndex = allPlayers.indexOf(currentServer)
+        if (serverIndex != -1) {
+            serverSpinner.setSelection(serverIndex)
+        }
+
+        // Initialize receiver options based on current server
+        updateReceiverOptions()
+
+        // Set current receiver if available
+        val receiverIndex = receiverAdapter.getPosition(currentReceiver)
+        if (receiverIndex >= 0) {
+            receiverSpinner.setSelection(receiverIndex)
+        }
+
+        // Add listener to update receiver options when server changes
+        serverSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                updateReceiverOptions()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
     }
 
     private fun updateTeamPreview(dialogView: View, isDoublesMode: Boolean) {
@@ -899,6 +949,36 @@ class MainActivity : AppCompatActivity() {
 
             team1Player2.visibility = View.VISIBLE
             team2Player2.visibility = View.VISIBLE
+
+            // Update the server and receiver spinners with current player names
+            val serverSpinner = dialogView.findViewById<Spinner>(R.id.serverSpinner)
+            val receiverSpinner = dialogView.findViewById<Spinner>(R.id.receiverSpinner)
+
+            val allPlayers = arrayOf(
+                playerNames.team1Player1,
+                playerNames.team1Player2,
+                playerNames.team2Player1,
+                playerNames.team2Player2
+            )
+
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, allPlayers)
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+
+            serverSpinner.adapter = adapter
+            receiverSpinner.adapter = adapter
+
+            // Set current selections
+            val currentServer = getCurrentServerName()
+            val serverIndex = allPlayers.indexOf(currentServer)
+            if (serverIndex != -1) {
+                serverSpinner.setSelection(serverIndex)
+            }
+
+            val currentReceiver = getCurrentReceiverName()
+            val receiverIndex = allPlayers.indexOf(currentReceiver)
+            if (receiverIndex != -1) {
+                receiverSpinner.setSelection(receiverIndex)
+            }
         } else {
             // Show only 2 players for singles
             team1Player1.text = playerNames.team1Player1
@@ -908,35 +988,35 @@ class MainActivity : AppCompatActivity() {
             team1Player2.visibility = View.GONE
             team2Player2.visibility = View.GONE
         }
-
-        // Update the radio button labels to show actual player names (only for doubles)
-        if (isDoublesMode) {
-            val team1Player1Even = dialogView.findViewById<RadioButton>(R.id.team1Player1Even)
-            val team1Player2Even = dialogView.findViewById<RadioButton>(R.id.team1Player2Even)
-            val team2Player1Even = dialogView.findViewById<RadioButton>(R.id.team2Player1Even)
-            val team2Player2Even = dialogView.findViewById<RadioButton>(R.id.team2Player2Even)
-
-            team1Player1Even.text = playerNames.team1Player1
-            team1Player2Even.text = playerNames.team1Player2
-            team2Player1Even.text = playerNames.team2Player1
-            team2Player2Even.text = playerNames.team2Player2
-        }
     }
 
     private fun saveSelectedPlayers(dialogView: View, isDoublesMode: Boolean) {
-        val requiredPlayers = if (isDoublesMode) 4 else 2
-
-        if (selectedPlayers.size < requiredPlayers) {
-            val modeText = if (isDoublesMode) "4 players" else "2 players"
-            Toast.makeText(this, "Please select exactly $modeText", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         if (isDoublesMode) {
-            // Get even side selections from the dialog
-            val team1EvenPlayer = if (dialogView.findViewById<RadioButton>(R.id.team1Player1Even).isChecked) 0 else 1
-            val team2EvenPlayer = if (dialogView.findViewById<RadioButton>(R.id.team2Player1Even).isChecked) 0 else 1
-            val firstServeTeam = if (dialogView.findViewById<RadioButton>(R.id.team1FirstServe).isChecked) 1 else 2
+            // For doubles mode, we need to ensure we have 4 players
+            // If selectedPlayers is empty (from saved state), populate it from current playerNames
+            if (selectedPlayers.isEmpty()) {
+                selectedPlayers.addAll(listOf(
+                    playerNames.team1Player1,
+                    playerNames.team1Player2,
+                    playerNames.team2Player1,
+                    playerNames.team2Player2
+                ))
+            }
+
+            if (selectedPlayers.size < 4) {
+                Toast.makeText(this, "Please select exactly 4 players", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            // Get server and receiver from dropdowns
+            val serverSpinner = dialogView.findViewById<Spinner>(R.id.serverSpinner)
+            val receiverSpinner = dialogView.findViewById<Spinner>(R.id.receiverSpinner)
+
+            val selectedServer = serverSpinner.selectedItem as String
+            val selectedReceiver = receiverSpinner.selectedItem as String
+
+            // Calculate positions based on current score
+            calculatePositionsFromSelection(selectedServer, selectedReceiver)
 
             playerNames = PlayerNames(
                 team1Player1 = selectedPlayers[0],
@@ -944,24 +1024,27 @@ class MainActivity : AppCompatActivity() {
                 team2Player1 = selectedPlayers[2],
                 team2Player2 = selectedPlayers[3],
                 isDoubles = true,
-                team1EvenPlayer = team1EvenPlayer,
-                team2EvenPlayer = team2EvenPlayer,
-                firstServeTeam = firstServeTeam
+                team1EvenPlayer = team1CurrentEvenPlayer,  // Set from calculation
+                team2EvenPlayer = team2CurrentEvenPlayer,  // Set from calculation
+                firstServeTeam = if (isPlayer1Serving) 1 else 2  // Set from calculation
             )
 
-            // RESET POSITIONS BASED ON CURRENT SCORE AND NEW CONFIGURATION
             saveCurrentState()
 
-            // Reset current positions to match new configuration
-            team1CurrentEvenPlayer = team1EvenPlayer
-            team2CurrentEvenPlayer = team2EvenPlayer
-            isPlayer1Serving = (firstServeTeam == 1)
-
-            // RECALCULATE CURRENT SERVE POSITIONS BASED ON SCORE
-            recalculateServePositions()
-
         } else {
-            // For singles, no serve configuration needed
+            // For singles, ensure we have 2 players
+            if (selectedPlayers.isEmpty()) {
+                selectedPlayers.addAll(listOf(
+                    playerNames.team1Player1,
+                    playerNames.team2Player1
+                ))
+            }
+
+            if (selectedPlayers.size < 2) {
+                Toast.makeText(this, "Please select exactly 2 players", Toast.LENGTH_SHORT).show()
+                return
+            }
+
             playerNames = PlayerNames(
                 team1Player1 = selectedPlayers[0],
                 team2Player1 = selectedPlayers[1],
@@ -976,66 +1059,53 @@ class MainActivity : AppCompatActivity() {
 
         savePlayerNamesToPrefs()
         updatePlayerDisplay()
-        val modeText = if (isDoublesMode) "Teams and positions recalculated!" else "Players saved!"
+        val modeText = if (isDoublesMode) "Serve configuration updated!" else "Players saved!"
         Toast.makeText(this, modeText, Toast.LENGTH_SHORT).show()
     }
 
-    private fun recalculateServePositions() {
-        if (!isDoublesMode) return
+    private fun calculatePositionsFromSelection(server: String, receiver: String) {
+        // Determine which team is serving
+        isPlayer1Serving = (server == playerNames.team1Player1 || server == playerNames.team1Player2)
 
-        // Determine which team should be serving based on who scored last
-        // If both scores are 0, use the firstServeTeam configuration
-        if (scorePlayer1 == 0 && scorePlayer2 == 0) {
-            // Starting position
-            isPlayer1Serving = (playerNames.firstServeTeam == 1)
-            if (isPlayer1Serving) {
-                team1ServePosition = team1CurrentEvenPlayer
-                team2ServePosition = 0
-            } else {
-                team2ServePosition = team2CurrentEvenPlayer
-                team1ServePosition = 0
-            }
-            return
-        }
-
-        // If game is in progress, determine serve positions based on current score
-        val totalPoints = scorePlayer1 + scorePlayer2
-
-        // Determine serving team based on who served first and total points
-        val initialServeTeam = (playerNames.firstServeTeam == 1)
-        val serveChanges = totalPoints / 2 // Every 2 points, serve changes (in doubles)
-
-        // Determine current serving team
-        isPlayer1Serving = (initialServeTeam == (serveChanges % 2 == 0))
-
-        // Calculate serve positions based on current score
-        if (isPlayer1Serving) {
-            // Team 1 is serving - position depends on Team 1's score
-            team1ServePosition = if (scorePlayer1 % 2 == 0) {
-                team1CurrentEvenPlayer  // Even score = even side serves
-            } else {
-                (team1CurrentEvenPlayer + 1) % 2  // Odd score = odd side serves
-            }
-            // Team 2 receiver is diagonal to server
-            team2ServePosition = if (scorePlayer1 % 2 == 0) {
-                team2CurrentEvenPlayer  // Even score = even side receives
-            } else {
-                (team2CurrentEvenPlayer + 1) % 2  // Odd score = odd side receives
-            }
+        // Determine server position
+        val serverPosition = if (isPlayer1Serving) {
+            if (server == playerNames.team1Player1) 0 else 1
         } else {
-            // Team 2 is serving - position depends on Team 2's score
-            team2ServePosition = if (scorePlayer2 % 2 == 0) {
-                team2CurrentEvenPlayer  // Even score = even side serves
-            } else {
-                (team2CurrentEvenPlayer + 1) % 2  // Odd score = odd side serves
-            }
-            // Team 1 receiver is diagonal to server
-            team1ServePosition = if (scorePlayer2 % 2 == 0) {
-                team1CurrentEvenPlayer  // Even score = even side receives
-            } else {
-                (team1CurrentEvenPlayer + 1) % 2  // Odd score = odd side receives
-            }
+            if (server == playerNames.team2Player1) 0 else 1
         }
+
+        // Determine receiver position
+        val receiverPosition = if (isPlayer1Serving) {
+            if (receiver == playerNames.team2Player1) 0 else 1
+        } else {
+            if (receiver == playerNames.team1Player1) 0 else 1
+        }
+
+        // Calculate court positions based on current score
+        val servingTeamScore = if (isPlayer1Serving) scorePlayer1 else scorePlayer2
+
+        if (isPlayer1Serving) {
+            // Team 1 serving
+            team1CurrentEvenPlayer = if (servingTeamScore % 2 == 0) serverPosition else (serverPosition + 1) % 2
+            team2CurrentEvenPlayer = if (servingTeamScore % 2 == 0) receiverPosition else (receiverPosition + 1) % 2
+        } else {
+            // Team 2 serving
+            team2CurrentEvenPlayer = if (servingTeamScore % 2 == 0) serverPosition else (serverPosition + 1) % 2
+            team1CurrentEvenPlayer = if (servingTeamScore % 2 == 0) receiverPosition else (receiverPosition + 1) % 2
+        }
+
+        // Set serve positions
+        if (isPlayer1Serving) {
+            team1ServePosition = serverPosition
+            team2ServePosition = 0
+        } else {
+            team2ServePosition = serverPosition
+            team1ServePosition = 0
+        }
+
+        Log.d("PositionCalc", "Server: $server, Receiver: $receiver")
+        Log.d("PositionCalc", "Team1 Even: $team1CurrentEvenPlayer, Team2 Even: $team2CurrentEvenPlayer")
+        Log.d("PositionCalc", "Score: $scorePlayer1-$scorePlayer2, Serving Team: ${if (isPlayer1Serving) "1" else "2"}")
     }
 
     private fun showPlayerSelectionDialog(parentDialogView: View, isDoublesMode: Boolean) {
@@ -1163,6 +1233,8 @@ class MainActivity : AppCompatActivity() {
                             team2Player2 = selectedPlayers[3],
                             isDoubles = true
                         )
+                        // Update the spinners with new player names
+                        updateTeamPreview(parentDialogView, isDoublesMode)
                     }
                 } else {
                     // For singles: assign 2 players
@@ -1176,10 +1248,6 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 updateTeamPreview(parentDialogView, isDoublesMode)
-                // Also update the serve configuration to reflect the new names (only for doubles)
-                if (isDoublesMode) {
-                    setupServeConfiguration(parentDialogView)
-                }
             }
             .setNegativeButton("Cancel", null)
             .create()
@@ -1195,44 +1263,6 @@ class MainActivity : AppCompatActivity() {
         )
 
         selectionDialog.show()
-    }
-
-    private fun deleteSelectedPlayers(playerListView: ListView, parentDialogView: View) {
-        val playersToDelete = mutableListOf<Player>()
-
-        // Find which players are checked for deletion
-        for (i in 0 until playerRoster.size) {
-            if (playerListView.isItemChecked(i)) {
-                playersToDelete.add(playerRoster[i])
-            }
-        }
-
-        if (playersToDelete.isEmpty()) {
-            Toast.makeText(this, "No players selected for deletion", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Show confirmation dialog
-        AlertDialog.Builder(this)
-            .setTitle("Delete Players")
-            .setMessage("Delete ${playersToDelete.size} player(s)?\n\n${playersToDelete.joinToString("\n") { it.name }}")
-            .setPositiveButton("Delete") { dialog, which ->
-                // Remove from roster
-                playerRoster.removeAll(playersToDelete)
-
-                // Remove from selected players if they were selected
-                selectedPlayers.removeAll(playersToDelete.map { it.name })
-
-                // Save changes
-                savePlayerRoster()
-
-                // Refresh the dialog
-                showPlayerSelectionDialog(parentDialogView, isDoublesMode)
-
-                Toast.makeText(this, "Players deleted", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
     }
 
     private fun initializeServingState() {
@@ -1267,6 +1297,23 @@ class MainActivity : AppCompatActivity() {
             try {
                 playerNames = Gson().fromJson(json, PlayerNames::class.java)
                 isDoublesMode = playerNames.isDoubles
+
+                // INITIALIZE SELECTED PLAYERS FROM SAVED NAMES
+                selectedPlayers.clear()
+                if (isDoublesMode) {
+                    selectedPlayers.addAll(listOf(
+                        playerNames.team1Player1,
+                        playerNames.team1Player2,
+                        playerNames.team2Player1,
+                        playerNames.team2Player2
+                    ))
+                } else {
+                    selectedPlayers.addAll(listOf(
+                        playerNames.team1Player1,
+                        playerNames.team2Player1
+                    ))
+                }
+
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error loading player names: ${e.message}")
                 playerNames = PlayerNames()
