@@ -92,6 +92,50 @@ data class GameHistory(
     val endTime: Long
 )
 
+data class PlayerStats(
+    val name: String,
+    var wins: Int = 0,
+    var losses: Int = 0,
+    var gamesPlayed: Int = 0,
+    val opponentStats: MutableMap<String, OpponentStats> = mutableMapOf()
+) {
+    val winRate: Double
+        get() = if (gamesPlayed > 0) wins.toDouble() / gamesPlayed else 0.0
+}
+
+data class OpponentStats(
+    val opponentName: String,
+    var wins: Int = 0,
+    var losses: Int = 0
+) {
+    val winRate: Double
+        get() = if (wins + losses > 0) wins.toDouble() / (wins + losses) else 0.0
+}
+
+data class StatsData(
+    val singlesStats: List<PlayerStats> = emptyList(),
+    val doublesStats: List<PlayerStats> = emptyList(),
+    val lastUpdated: Long = System.currentTimeMillis()
+)
+
+data class CumulativePlayerStats(
+    val name: String,
+    var totalWins: Int = 0,
+    var totalLosses: Int = 0,
+    var totalGamesPlayed: Int = 0,
+    val opponentStats: MutableMap<String, OpponentStats> = mutableMapOf()
+) {
+    val totalWinRate: Double
+        get() = if (totalGamesPlayed > 0) totalWins.toDouble() / totalGamesPlayed else 0.0
+}
+
+data class CumulativeStats(
+    val playerStats: MutableMap<String, CumulativePlayerStats> = mutableMapOf(),
+    var totalGamesProcessed: Int = 0,
+    var lastGameTimestamp: Long = 0,
+    var firstGameTimestamp: Long = Long.MAX_VALUE
+)
+
 class MainActivity : AppCompatActivity() {
 
     // UI elements
@@ -115,6 +159,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var historyButton: Button
     private lateinit var swapNamesButton: Button
     private lateinit var doublesModeToggle: SwitchCompat
+    private val prefsStatsKey = "gameStats"
+    private lateinit var statsButton: Button
+    private val prefsCumulativeStatsKey = "cumulativeStats"
 
     // Game state variables
     private var scorePlayer1 = 0
@@ -253,6 +300,7 @@ class MainActivity : AppCompatActivity() {
         historyButton = findViewById(R.id.historyButton)
         swapNamesButton = findViewById(R.id.swapNamesButton)
         doublesModeToggle = findViewById(R.id.doublesModeToggle)
+        statsButton = findViewById(R.id.statsButton)
 
         // NEW: Doubles mode views
         nameInputLayout = findViewById(R.id.nameInputLayout)
@@ -413,6 +461,10 @@ class MainActivity : AppCompatActivity() {
 
         swapNamesButton.setOnClickListener {
             swapPlayerNames()
+        }
+
+        statsButton.setOnClickListener {
+            showStatsPage()
         }
     }
 
@@ -725,6 +777,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveNames() {
+        // Trim whitespace from names before saving
         val player1 = player1NameInput.text.toString().trim()
         val player2 = player2NameInput.text.toString().trim()
 
@@ -767,7 +820,10 @@ class MainActivity : AppCompatActivity() {
                 val type = object : TypeToken<List<Player>>() {}.type
                 val loadedPlayers = Gson().fromJson<List<Player>>(json, type)
                 playerRoster.clear()
-                playerRoster.addAll(loadedPlayers)
+                // Normalize names when loading from storage
+                loadedPlayers.forEach { player ->
+                    playerRoster.add(Player(normalizeName(player.name), player.isFavorite))
+                }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error loading player roster: ${e.message}")
             }
@@ -786,6 +842,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun savePlayerRoster() {
+        // Names are already normalized when added to the roster
         val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
         val json = Gson().toJson(playerRoster)
         prefs.edit().putString(prefsPlayersKey, json).apply()
@@ -816,7 +873,7 @@ class MainActivity : AppCompatActivity() {
         val addButton = dialogView.findViewById<Button>(R.id.addPlayerButton)
 
         addButton.setOnClickListener {
-            val newName = newPlayerInput.text.toString().trim()
+            val newName = newPlayerInput.text.toString().trim() // Trim here
             if (newName.isNotEmpty() && playerRoster.none { it.name.equals(newName, true) }) {
                 playerRoster.add(Player(newName))
                 savePlayerRoster()
@@ -1950,6 +2007,10 @@ class MainActivity : AppCompatActivity() {
             gameHistory.removeAt(0)
         }
         saveHistoryToPrefs()
+
+        // Update both current stats and cumulative stats
+        updateStats()
+        updateCumulativeStats(completedGame) // ADD THIS LINE
     }
 
     private fun saveHistoryToPrefs() {
@@ -2199,8 +2260,11 @@ class MainActivity : AppCompatActivity() {
                 val gamesForDate = groupedHistory[selectedDateKey]!!
                 showGamesForDate(gamesForDate, dateItems[which])
             }
-            .setPositiveButton("Clear History") { dialog, which ->
+            .setPositiveButton("Clear Recent History") { dialog, which ->
                 clearGameHistory()
+            }
+            .setNeutralButton("Clear All-Time Stats") { dialog, which ->
+                showDeleteCumulativeStatsConfirmation()
             }
             .setNegativeButton("Close", null)
             .create()
@@ -2208,20 +2272,67 @@ class MainActivity : AppCompatActivity() {
         // Apply button colors
         dialog.setOnShowListener {
             val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            val neutralButton = dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
             val negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
 
-            // Make "Clear History" red (warning color)
-            positiveButton.setTextColor(Color.RED)
-            positiveButton.setBackgroundColor(Color.TRANSPARENT) // Remove default background if needed
+            // Make "Clear Recent History" orange (warning)
+            positiveButton.setTextColor(Color.parseColor("#FF9800"))
+            positiveButton.setBackgroundColor(Color.TRANSPARENT)
             positiveButton.setTypeface(null, Typeface.BOLD)
+
+            // Make "Clear All-Time Stats" red (danger)
+            neutralButton.setTextColor(Color.RED)
+            neutralButton.setBackgroundColor(Color.TRANSPARENT)
+            neutralButton.setTypeface(null, Typeface.BOLD)
 
             // Make "Close" dark gray
             negativeButton.setTextColor(Color.DKGRAY)
-            negativeButton.setBackgroundColor(Color.TRANSPARENT) // Remove default background if needed
+            negativeButton.setBackgroundColor(Color.TRANSPARENT)
             negativeButton.setTypeface(null, Typeface.BOLD)
         }
 
         dialog.show()
+    }
+
+    private fun showDeleteCumulativeStatsConfirmation() {
+        val cumulativeStats = loadCumulativeStats()
+        val totalGames = cumulativeStats.totalGamesProcessed
+
+        if (totalGames == 0) {
+            Toast.makeText(this, "No cumulative stats to delete", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Delete All-Time Stats")
+            .setMessage("Are you sure you want to delete ALL lifetime statistics?\n\n" +
+                    "This will permanently delete:\n" +
+                    "• $totalGames all-time games\n" +
+                    "• All player win/loss records\n" +
+                    "• All head-to-head statistics\n\n" +
+                    "This action cannot be undone!")
+            .setPositiveButton("DELETE ALL STATS") { dialog, which ->
+                deleteCumulativeStats()
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+            .apply {
+                setOnShowListener {
+                    val positiveButton = getButton(AlertDialog.BUTTON_POSITIVE)
+                    val negativeButton = getButton(AlertDialog.BUTTON_NEGATIVE)
+
+                    // Make "DELETE ALL STATS" red and bold
+                    positiveButton.setTextColor(Color.RED)
+                    positiveButton.setBackgroundColor(Color.TRANSPARENT)
+                    positiveButton.setTypeface(null, Typeface.BOLD)
+
+                    // Make "Cancel" dark gray
+                    negativeButton.setTextColor(Color.DKGRAY)
+                    negativeButton.setBackgroundColor(Color.TRANSPARENT)
+                    negativeButton.setTypeface(null, Typeface.BOLD)
+                }
+            }
+            .show()
     }
 
     private fun showGamesForDate(games: List<GameHistory>, dateTitle: String) {
@@ -2579,14 +2690,21 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Delete Game")
             .setMessage("Are you sure you want to delete this game?\n\n" +
                     "$player1Display vs $player2Display\n" +
-                    "Score: ${game.player1Score} - ${game.player2Score}")
+                    "Score: ${game.player1Score} - ${game.player2Score}\n\n" +
+                    "This will remove the game from:\n" +
+                    "• Recent games history\n" +
+                    "• All-time statistics")
             .setPositiveButton("Delete") { dialog, which ->
                 // Remove the game from history
                 val index = gameHistory.indexOfFirst { it.timestamp == game.timestamp }
                 if (index != -1) {
                     gameHistory.removeAt(index)
                     saveHistoryToPrefs()
-                    Toast.makeText(this, "Game deleted", Toast.LENGTH_SHORT).show()
+
+                    // ALSO remove from cumulative stats
+                    removeGameFromCumulativeStats(game)
+
+                    Toast.makeText(this, "Game deleted from all records", Toast.LENGTH_SHORT).show()
                     onDelete() // Call the callback after successful deletion
                 }
             }
@@ -2611,6 +2729,164 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    // Replace the entire removeGameFromCumulativeStats method with this simpler version:
+    private fun removeGameFromCumulativeStats(game: GameHistory) {
+        val cumulativeStats = loadCumulativeStats()
+
+        if (game.playerNames.isDoubles) {
+            removeDoublesGameFromCumulative(game, cumulativeStats)
+        } else {
+            removeSinglesGameFromCumulative(game, cumulativeStats)
+        }
+
+        cumulativeStats.totalGamesProcessed = maxOf(0, cumulativeStats.totalGamesProcessed - 1)
+
+        // For timestamp management, we'll take a simpler approach:
+        // If this was the last game, reset the timestamps
+        if (cumulativeStats.totalGamesProcessed == 0) {
+            cumulativeStats.lastGameTimestamp = 0
+            cumulativeStats.firstGameTimestamp = Long.MAX_VALUE
+        } else {
+            // We can't accurately update timestamps without storing all games individually,
+            // so we'll leave them as is. The timestamps will be approximately correct.
+            // The next game added will update the lastGameTimestamp correctly.
+        }
+
+        saveCumulativeStats(cumulativeStats)
+    }
+
+    private fun removeSinglesGameFromCumulative(game: GameHistory, cumulativeStats: CumulativeStats) {
+        val player1 = normalizeName(game.playerNames.team1Player1)
+        val player2 = normalizeName(game.playerNames.team2Player1)
+        val player1Won = game.player1Score > game.player2Score
+
+        // Update player 1 cumulative stats
+        cumulativeStats.playerStats[player1]?.let { player1Stats ->
+            player1Stats.totalGamesPlayed = maxOf(0, player1Stats.totalGamesPlayed - 1)
+            if (player1Won) {
+                player1Stats.totalWins = maxOf(0, player1Stats.totalWins - 1)
+            } else {
+                player1Stats.totalLosses = maxOf(0, player1Stats.totalLosses - 1)
+            }
+
+            // Update head-to-head stats
+            player1Stats.opponentStats[player2]?.let { opponentStats ->
+                if (player1Won) {
+                    opponentStats.wins = maxOf(0, opponentStats.wins - 1)
+                } else {
+                    opponentStats.losses = maxOf(0, opponentStats.losses - 1)
+                }
+                // Remove empty opponent stats
+                if (opponentStats.wins == 0 && opponentStats.losses == 0) {
+                    player1Stats.opponentStats.remove(player2)
+                }
+            }
+
+            // Remove player if they have no games
+            if (player1Stats.totalGamesPlayed == 0) {
+                cumulativeStats.playerStats.remove(player1)
+            }
+        }
+
+        // Update player 2 cumulative stats
+        cumulativeStats.playerStats[player2]?.let { player2Stats ->
+            player2Stats.totalGamesPlayed = maxOf(0, player2Stats.totalGamesPlayed - 1)
+            if (player1Won) {
+                player2Stats.totalLosses = maxOf(0, player2Stats.totalLosses - 1)
+            } else {
+                player2Stats.totalWins = maxOf(0, player2Stats.totalWins - 1)
+            }
+
+            // Update head-to-head stats
+            player2Stats.opponentStats[player1]?.let { opponentStats ->
+                if (player1Won) {
+                    opponentStats.losses = maxOf(0, opponentStats.losses - 1)
+                } else {
+                    opponentStats.wins = maxOf(0, opponentStats.wins - 1)
+                }
+                // Remove empty opponent stats
+                if (opponentStats.wins == 0 && opponentStats.losses == 0) {
+                    player2Stats.opponentStats.remove(player1)
+                }
+            }
+
+            // Remove player if they have no games
+            if (player2Stats.totalGamesPlayed == 0) {
+                cumulativeStats.playerStats.remove(player2)
+            }
+        }
+    }
+
+    private fun removeDoublesGameFromCumulative(game: GameHistory, cumulativeStats: CumulativeStats) {
+        val team1Players = listOf(
+            normalizeName(game.playerNames.team1Player1),
+            normalizeName(game.playerNames.team1Player2)
+        )
+        val team2Players = listOf(
+            normalizeName(game.playerNames.team2Player1),
+            normalizeName(game.playerNames.team2Player2)
+        )
+
+        val team1 = getCanonicalTeamName(team1Players)
+        val team2 = getCanonicalTeamName(team2Players)
+        val team1Won = game.player1Score > game.player2Score
+
+        // Update team 1 cumulative stats
+        cumulativeStats.playerStats[team1]?.let { team1Stats ->
+            team1Stats.totalGamesPlayed = maxOf(0, team1Stats.totalGamesPlayed - 1)
+            if (team1Won) {
+                team1Stats.totalWins = maxOf(0, team1Stats.totalWins - 1)
+            } else {
+                team1Stats.totalLosses = maxOf(0, team1Stats.totalLosses - 1)
+            }
+
+            // Update head-to-head stats
+            team1Stats.opponentStats[team2]?.let { opponentStats ->
+                if (team1Won) {
+                    opponentStats.wins = maxOf(0, opponentStats.wins - 1)
+                } else {
+                    opponentStats.losses = maxOf(0, opponentStats.losses - 1)
+                }
+                // Remove empty opponent stats
+                if (opponentStats.wins == 0 && opponentStats.losses == 0) {
+                    team1Stats.opponentStats.remove(team2)
+                }
+            }
+
+            // Remove team if they have no games
+            if (team1Stats.totalGamesPlayed == 0) {
+                cumulativeStats.playerStats.remove(team1)
+            }
+        }
+
+        // Update team 2 cumulative stats
+        cumulativeStats.playerStats[team2]?.let { team2Stats ->
+            team2Stats.totalGamesPlayed = maxOf(0, team2Stats.totalGamesPlayed - 1)
+            if (team1Won) {
+                team2Stats.totalLosses = maxOf(0, team2Stats.totalLosses - 1)
+            } else {
+                team2Stats.totalWins = maxOf(0, team2Stats.totalWins - 1)
+            }
+
+            // Update head-to-head stats
+            team2Stats.opponentStats[team1]?.let { opponentStats ->
+                if (team1Won) {
+                    opponentStats.losses = maxOf(0, opponentStats.losses - 1)
+                } else {
+                    opponentStats.wins = maxOf(0, opponentStats.wins - 1)
+                }
+                // Remove empty opponent stats
+                if (opponentStats.wins == 0 && opponentStats.losses == 0) {
+                    team2Stats.opponentStats.remove(team1)
+                }
+            }
+
+            // Remove team if they have no games
+            if (team2Stats.totalGamesPlayed == 0) {
+                cumulativeStats.playerStats.remove(team2)
+            }
+        }
+    }
 
     private fun showGamesForDateForGame(game: GameHistory) {
         // Group games by date to find which date this game belongs to
@@ -2671,5 +2947,232 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun calculateStats(): StatsData {
+        val singlesStats = mutableMapOf<String, PlayerStats>()
+        val doublesStats = mutableMapOf<String, PlayerStats>()
+
+        gameHistory.forEach { game ->
+            if (game.playerNames.isDoubles) {
+                processDoublesGame(game, doublesStats)
+            } else {
+                processSinglesGame(game, singlesStats)
+            }
+        }
+
+        return StatsData(
+            singlesStats = singlesStats.values.sortedByDescending { it.gamesPlayed },
+            doublesStats = doublesStats.values.sortedByDescending { it.gamesPlayed }
+        )
+    }
+
+    private fun processSinglesGame(game: GameHistory, statsMap: MutableMap<String, PlayerStats>) {
+        // Normalize names by trimming whitespace
+        val player1 = normalizeName(game.playerNames.team1Player1)
+        val player2 = normalizeName(game.playerNames.team2Player1)
+        val player1Won = game.player1Score > game.player2Score
+
+        // Update player 1 stats
+        val player1Stats = statsMap.getOrPut(player1) { PlayerStats(player1) }
+        player1Stats.gamesPlayed++
+        if (player1Won) player1Stats.wins++ else player1Stats.losses++
+
+        // Update player 2 stats
+        val player2Stats = statsMap.getOrPut(player2) { PlayerStats(player2) }
+        player2Stats.gamesPlayed++
+        if (player1Won) player2Stats.losses++ else player2Stats.wins++
+
+        // Update head-to-head stats
+        updateHeadToHeadStats(player1Stats, player2, player1Won)
+        updateHeadToHeadStats(player2Stats, player1, !player1Won)
+    }
+
+    private fun processDoublesGame(game: GameHistory, statsMap: MutableMap<String, PlayerStats>) {
+        // Normalize all names by trimming whitespace
+        val team1Players = listOf(
+            normalizeName(game.playerNames.team1Player1),
+            normalizeName(game.playerNames.team1Player2)
+        )
+        val team2Players = listOf(
+            normalizeName(game.playerNames.team2Player1),
+            normalizeName(game.playerNames.team2Player2)
+        )
+
+        // Create canonical team representation (sorted names)
+        val team1 = getCanonicalTeamName(team1Players)
+        val team2 = getCanonicalTeamName(team2Players)
+        val team1Won = game.player1Score > game.player2Score
+
+        // Update team 1 stats
+        val team1Stats = statsMap.getOrPut(team1) { PlayerStats(team1) }
+        team1Stats.gamesPlayed++
+        if (team1Won) team1Stats.wins++ else team1Stats.losses++
+
+        // Update team 2 stats
+        val team2Stats = statsMap.getOrPut(team2) { PlayerStats(team2) }
+        team2Stats.gamesPlayed++
+        if (team1Won) team2Stats.losses++ else team2Stats.wins++
+
+        // Update head-to-head stats
+        updateHeadToHeadStats(team1Stats, team2, team1Won)
+        updateHeadToHeadStats(team2Stats, team1, !team1Won)
+    }
+
+    private fun normalizeName(name: String): String {
+        return name.trim()
+    }
+
+    private fun getCanonicalTeamName(players: List<String>): String {
+        // Sort names alphabetically to ensure consistent team representation
+        // Also normalize each name by trimming whitespace
+        return players.map { normalizeName(it) }.sorted().joinToString("/")
+    }
+
+    private fun updateHeadToHeadStats(playerStats: PlayerStats, opponent: String, won: Boolean) {
+        val opponentStats = playerStats.opponentStats.getOrPut(opponent) {
+            OpponentStats(opponent)
+        }
+        if (won) opponentStats.wins++ else opponentStats.losses++
+    }
+
+    private fun saveStatsToPrefs(stats: StatsData) {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val json = Gson().toJson(stats)
+        prefs.edit().putString(prefsStatsKey, json).apply()
+    }
+
+    private fun loadStatsFromPrefs(): StatsData {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val json = prefs.getString(prefsStatsKey, null)
+        return if (!json.isNullOrEmpty()) {
+            try {
+                Gson().fromJson(json, StatsData::class.java)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading stats: ${e.message}")
+                StatsData()
+            }
+        } else {
+            StatsData()
+        }
+    }
+
+    private fun updateStats() {
+        val stats = calculateStats()
+        saveStatsToPrefs(stats)
+    }
+
+    private fun showStatsPage() {
+        // Ensure stats are up to date before showing
+        updateStats()
+        val intent = Intent(this, StatsActivity::class.java)
+        startActivity(intent)
+    }
+
+    // Method to update cumulative stats when a game is saved
+    private fun updateCumulativeStats(game: GameHistory) {
+        val cumulativeStats = loadCumulativeStats()
+
+        if (game.playerNames.isDoubles) {
+            updateCumulativeDoublesStats(game, cumulativeStats)
+        } else {
+            updateCumulativeSinglesStats(game, cumulativeStats)
+        }
+
+        cumulativeStats.totalGamesProcessed++
+        cumulativeStats.lastGameTimestamp = maxOf(cumulativeStats.lastGameTimestamp, game.timestamp)
+
+        // Fix first timestamp initialization
+        if (cumulativeStats.firstGameTimestamp == Long.MAX_VALUE) {
+            cumulativeStats.firstGameTimestamp = game.timestamp
+        } else {
+            cumulativeStats.firstGameTimestamp = minOf(cumulativeStats.firstGameTimestamp, game.timestamp)
+        }
+
+        saveCumulativeStats(cumulativeStats)
+    }
+
+    private fun updateCumulativeSinglesStats(game: GameHistory, cumulativeStats: CumulativeStats) {
+        val player1 = normalizeName(game.playerNames.team1Player1)
+        val player2 = normalizeName(game.playerNames.team2Player1)
+        val player1Won = game.player1Score > game.player2Score
+
+        // Update player 1 cumulative stats
+        val player1Stats = cumulativeStats.playerStats.getOrPut(player1) { CumulativePlayerStats(player1) }
+        player1Stats.totalGamesPlayed++
+        if (player1Won) player1Stats.totalWins++ else player1Stats.totalLosses++
+
+        // Update player 2 cumulative stats
+        val player2Stats = cumulativeStats.playerStats.getOrPut(player2) { CumulativePlayerStats(player2) }
+        player2Stats.totalGamesPlayed++
+        if (player1Won) player2Stats.totalLosses++ else player2Stats.totalWins++
+
+        // Update head-to-head stats
+        updateCumulativeHeadToHeadStats(player1Stats, player2, player1Won)
+        updateCumulativeHeadToHeadStats(player2Stats, player1, !player1Won)
+    }
+
+    private fun updateCumulativeDoublesStats(game: GameHistory, cumulativeStats: CumulativeStats) {
+        val team1Players = listOf(
+            normalizeName(game.playerNames.team1Player1),
+            normalizeName(game.playerNames.team1Player2)
+        )
+        val team2Players = listOf(
+            normalizeName(game.playerNames.team2Player1),
+            normalizeName(game.playerNames.team2Player2)
+        )
+
+        val team1 = getCanonicalTeamName(team1Players)
+        val team2 = getCanonicalTeamName(team2Players)
+        val team1Won = game.player1Score > game.player2Score
+
+        // Update team 1 cumulative stats
+        val team1Stats = cumulativeStats.playerStats.getOrPut(team1) { CumulativePlayerStats(team1) }
+        team1Stats.totalGamesPlayed++
+        if (team1Won) team1Stats.totalWins++ else team1Stats.totalLosses++
+
+        // Update team 2 cumulative stats
+        val team2Stats = cumulativeStats.playerStats.getOrPut(team2) { CumulativePlayerStats(team2) }
+        team2Stats.totalGamesPlayed++
+        if (team1Won) team2Stats.totalLosses++ else team2Stats.totalWins++
+
+        // Update head-to-head stats
+        updateCumulativeHeadToHeadStats(team1Stats, team2, team1Won)
+        updateCumulativeHeadToHeadStats(team2Stats, team1, !team1Won)
+    }
+
+    private fun updateCumulativeHeadToHeadStats(playerStats: CumulativePlayerStats, opponent: String, won: Boolean) {
+        val opponentStats = playerStats.opponentStats.getOrPut(opponent) {
+            OpponentStats(opponent)
+        }
+        if (won) opponentStats.wins++ else opponentStats.losses++
+    }
+
+    private fun loadCumulativeStats(): CumulativeStats {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val json = prefs.getString(prefsCumulativeStatsKey, null)
+        return if (!json.isNullOrEmpty()) {
+            try {
+                Gson().fromJson(json, CumulativeStats::class.java)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading cumulative stats: ${e.message}")
+                CumulativeStats()
+            }
+        } else {
+            CumulativeStats()
+        }
+    }
+
+    private fun saveCumulativeStats(stats: CumulativeStats) {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val json = Gson().toJson(stats)
+        prefs.edit().putString(prefsCumulativeStatsKey, json).apply()
+    }
+
+    // Method to delete cumulative stats
+    private fun deleteCumulativeStats() {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        prefs.edit().remove(prefsCumulativeStatsKey).apply()
+        Toast.makeText(this, "Cumulative stats deleted", Toast.LENGTH_SHORT).show()
     }
 }

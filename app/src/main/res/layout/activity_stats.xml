@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="#f5f5f5">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Player Statistics"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            android:textColor="@android:color/black" />
+
+        <!-- Simplified filter buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/filterAllTimeButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="All Time"
+                android:textSize="14sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/filterAllButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Last 150 Games"
+                android:textSize="14sp"
+                android:layout_marginEnd="8dp"
+                android:textColor="@android:color/white" />
+
+            <Button
+                android:id="@+id/filter24HoursButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Last 24 Hours"
+                android:textSize="14sp"
+                android:layout_marginStart="8dp"
+                android:textColor="@color/design_default_color_primary" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/currentFilterText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Filter: All Time"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"
+            android:textColor="@android:color/black" />
+
+        <TextView
+            android:id="@+id/lastUpdatedText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Last updated: Loading..."
+            android:textSize="12sp"
+            android:gravity="center"
+            android:layout_marginBottom="24dp"
+            android:textColor="@android:color/darker_gray" />
+
+        <LinearLayout
+            android:id="@+id/singlesStatsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="24dp" />
+
+        <LinearLayout
+            android:id="@+id/doublesStatsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:id="@+id/noStatsText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No statistics available yet.\nPlay some games to see stats!"
+            android:textSize="16sp"
+            android:gravity="center"
+            android:textColor="@android:color/darker_gray"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/backButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Back to Game"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@color/design_default_color_primary" />
+
+    </LinearLayout>
+
+</ScrollView>

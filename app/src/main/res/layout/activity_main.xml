@@ -47,16 +47,16 @@
             android:trackTint="@color/design_default_color_primary"
             android:layout_marginEnd="8dp" />
 
-        <!-- View History -->
+        <!-- Swap Names Button -->
         <Button
-            android:id="@+id/historyButton"
+            android:id="@+id/swapNamesButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="View History"
+            android:text="Swap Names"
             android:textSize="10sp"
             android:layout_margin="2dp"
             android:paddingStart="12dp"
-            android:paddingEnd="12dp"/>
+            android:paddingEnd="12dp" />
 
         <!-- Set points to win a game -->
         <Button
@@ -583,9 +583,9 @@
                 android:textColor="@color/white"
                 android:textSize="8sp" />
 
-            <!-- Swap Names Button -->
+            <!-- View History -->
             <Button
-                android:id="@+id/swapNamesButton"
+                android:id="@+id/historyButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
@@ -595,9 +595,26 @@
                 android:paddingVertical="2dp"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:text="Swap Names"
+                android:text="View History"
                 android:textColor="@color/white"
-                android:textSize="8sp" />
+                android:textSize="8sp"
+                />
+
+            <!-- Stats Button -->
+            <Button
+                android:id="@+id/statsButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/reset_button_bg"
+                android:elevation="1dp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="2dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:textColor="@color/white"
+                android:textSize="8sp"
+                android:text="Stats" />
         </LinearLayout>
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
