@@ -350,7 +350,7 @@ class StatsActivity : AppCompatActivity() {
         }
 
         // Add column headers
-        val headers = arrayOf("Player/Team", "Games", "W", "L", "Win %")
+        val headers = arrayOf("Player(s)", "Games", "W", "L", "Win %")
         val headerRow = createTableRow(headers, isHeader = true)
         tableLayout.addView(headerRow)
 

@@ -286,11 +286,11 @@
                 <TextView
                     android:id="@+id/team1ServeIndicator"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:text="Serving: Player"
-                    android:textSize="12sp"
+                    android:textSize="30sp"
                     android:gravity="center"
-                    android:maxLines="1"
+                    android:maxLines="2"
                     android:textColor="#1976D2"
                     android:textStyle="bold"
                     android:layout_marginTop="4dp" />
@@ -452,11 +452,11 @@
                 <TextView
                     android:id="@+id/team2ServeIndicator"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:text="Serving: Player"
-                    android:textSize="12sp"
+                    android:textSize="30sp"
                     android:gravity="center"
-                    android:maxLines="1"
+                    android:maxLines="2"
                     android:textColor="#D32F2F"
                     android:textStyle="bold"
                     android:layout_marginTop="4dp" />
