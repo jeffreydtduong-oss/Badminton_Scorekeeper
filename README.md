@@ -14,3 +14,4 @@ Below are the features of this app:
 - History of scores are tracked whenever a game is won. It is grouped by Day, and a maximum of 150 games can be stored
 - These games are also tracked in Stats section, and can be filtered by All Time, Last 150 games, or Last 24 hours
 - History records can be deleted one-by-one or all at once. Note that one by one deletions remove the game from Stats in all 3 filter types (All Time, Last 150 games, Last 24 hours). Clearing Recent History doesn't clear All Time stats, but does clear Last 150 games and Last 24 hours stats. Clearing All Time stats only clears the All Time stats, it doesn't clear Last 150 games or Last 24 hours stats.
+- In the All Time filter, user can export the data into CSV format (Overall Stats, Head-To-Head Stats, Metadata, and Game History are what gets exported). If the user likes, they can clear all data in the app settings to reduce the amount of storage used on the phone/tablet
