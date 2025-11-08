@@ -30,6 +30,7 @@ class StatsActivity : AppCompatActivity() {
     private lateinit var lastUpdatedText: TextView
     private lateinit var currentFilterText: TextView
     private lateinit var exportDataButton: Button
+    private lateinit var clearAllTimeStatsButton: Button
 
     private var currentFilter: String = "all"
     private var allGameHistory: List<GameHistory> = emptyList()
@@ -43,10 +44,12 @@ class StatsActivity : AppCompatActivity() {
         lastUpdatedText = findViewById(R.id.lastUpdatedText)
         currentFilterText = findViewById(R.id.currentFilterText)
         exportDataButton = findViewById(R.id.exportDataButton)
+        clearAllTimeStatsButton = findViewById(R.id.clearAllTimeStatsButton)
 
         loadAllGameHistory()
         setupFilterButtons()
         setupExportButton()
+        setupClearAllTimeStatsButton()
         setupBackButton()
         applyFilter("all")
     }
@@ -56,6 +59,12 @@ class StatsActivity : AppCompatActivity() {
             if (currentFilter == "alltime") {
                 exportAllTimeData()
             }
+        }
+    }
+
+    private fun setupClearAllTimeStatsButton() {
+        clearAllTimeStatsButton.setOnClickListener {
+            showDeleteCumulativeStatsConfirmation()
         }
     }
 
@@ -298,14 +307,16 @@ class StatsActivity : AppCompatActivity() {
             "alltime" -> {
                 val cumulativeStats = loadCumulativeStats()
                 statsData = convertCumulativeToStatsData(cumulativeStats)
-                // Show export button for all-time filter
+                // Show both buttons for all-time filter
                 exportDataButton.visibility = View.VISIBLE
+                clearAllTimeStatsButton.visibility = View.VISIBLE
             }
             else -> {
                 val filteredHistory = filterGameHistory(allGameHistory, filterType)
                 statsData = calculateStatsFromHistory(filteredHistory)
-                // Hide export button for other filters
+                // Hide both buttons for other filters
                 exportDataButton.visibility = View.GONE
+                clearAllTimeStatsButton.visibility = View.GONE
             }
         }
         updateFilterDisplay(filterType)
@@ -636,7 +647,7 @@ class StatsActivity : AppCompatActivity() {
     }
 
     private fun showPlayerDetails(playerStats: PlayerStats, gameType: String) {
-        val dialog = android.app.AlertDialog.Builder(this)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setTitle("${playerStats.name} - $gameType")
             .setMessage(buildPlayerDetailsMessage(playerStats))
             .setPositiveButton("Close", null)
@@ -666,5 +677,56 @@ class StatsActivity : AppCompatActivity() {
         }
 
         return sb.toString()
+    }
+
+    // NEW: Add the delete confirmation dialog (moved from MainActivity)
+    private fun showDeleteCumulativeStatsConfirmation() {
+        val cumulativeStats = loadCumulativeStats()
+        val totalGames = cumulativeStats.totalGamesProcessed
+
+        if (totalGames == 0) {
+            Toast.makeText(this, "No cumulative stats to delete", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this, R.style.CustomDialogTheme)
+            .setTitle("Delete All-Time Stats")
+            .setMessage("Are you sure you want to delete ALL lifetime statistics?\n\n" +
+                    "This will permanently delete:\n" +
+                    "• $totalGames all-time games\n" +
+                    "• All player win/loss records\n" +
+                    "• All head-to-head statistics\n\n" +
+                    "This action cannot be undone!")
+            .setPositiveButton("DELETE ALL STATS") { dialog, which ->
+                deleteCumulativeStats()
+                // Refresh the display after deletion
+                applyFilter("alltime")
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+            .apply {
+                setOnShowListener {
+                    val positiveButton = getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
+                    val negativeButton = getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE)
+
+                    // Make "DELETE ALL STATS" red and bold
+                    positiveButton.setTextColor(Color.RED)
+                    positiveButton.setBackgroundColor(Color.TRANSPARENT)
+                    positiveButton.setTypeface(null, Typeface.BOLD)
+
+                    // Make "Cancel" dark gray
+                    negativeButton.setTextColor(Color.DKGRAY)
+                    negativeButton.setBackgroundColor(Color.TRANSPARENT)
+                    negativeButton.setTypeface(null, Typeface.BOLD)
+                }
+            }
+            .show()
+    }
+
+    // NEW: Method to delete cumulative stats
+    private fun deleteCumulativeStats() {
+        val prefs = getSharedPreferences("BadmintonScorePrefs", MODE_PRIVATE)
+        prefs.edit().remove("cumulativeStats").apply()
+        Toast.makeText(this, "All-time statistics cleared", Toast.LENGTH_SHORT).show()
     }
 }

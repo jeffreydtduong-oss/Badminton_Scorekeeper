@@ -82,6 +82,18 @@
             android:layout_marginBottom="16dp"
             android:visibility="gone" />
 
+        <!-- NEW: Clear All-Time Stats Button - Initially hidden -->
+        <Button
+            android:id="@+id/clearAllTimeStatsButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🗑️ Clear All-Time Stats"
+            android:textSize="14sp"
+            android:backgroundTint="@color/design_default_color_error"
+            android:textColor="@android:color/white"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/lastUpdatedText"
             android:layout_width="match_parent"

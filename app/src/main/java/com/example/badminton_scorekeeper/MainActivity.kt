@@ -891,7 +891,7 @@ class MainActivity : AppCompatActivity() {
 
         val dialogTitle = if (isDoublesMode) "Doubles Team Setup" else "Singles Player Setup"
 
-        currentNameEntryDialog = AlertDialog.Builder(this)
+        currentNameEntryDialog = AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setTitle(dialogTitle)
             .setView(dialogView)
             .setPositiveButton("Save") { dialog, which ->
@@ -1241,7 +1241,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             // Show confirmation dialog
-            AlertDialog.Builder(this)
+            AlertDialog.Builder(this, R.style.CustomDialogTheme)
                 .setTitle("Delete Players")
                 .setMessage("Delete ${playersToDelete.size} player(s)?\n\n${playersToDelete.joinToString("\n") { it.name }}")
                 .setPositiveButton("Delete") { dialog, which ->
@@ -1273,7 +1273,7 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
-        val selectionDialog = AlertDialog.Builder(this)
+        val selectionDialog = AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setView(selectionView)
             .setPositiveButton("OK") { dialog, which ->
                 // Get selected players in the order they were selected
@@ -1467,7 +1467,7 @@ class MainActivity : AppCompatActivity() {
     // Winning points methods
     private fun showWinningPointsDialog() {
         val pointsOptions = arrayOf("3", "7", "11", "15", "21")
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setTitle("Select Winning Points")
             .setItems(pointsOptions) { dialog, which ->
                 setWinningPoints(pointsOptions[which].toInt())
@@ -2253,7 +2253,7 @@ class MainActivity : AppCompatActivity() {
             "$dateString (${games.size} game${if (games.size > 1) "s" else ""})"
         }.toTypedArray()
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setTitle("Game History - ${getHistorySummary()}")
             .setItems(dateItems) { dialog, which ->
                 val selectedDateKey = dates[which]
@@ -2262,9 +2262,6 @@ class MainActivity : AppCompatActivity() {
             }
             .setPositiveButton("Clear Recent History") { dialog, which ->
                 clearGameHistory()
-            }
-            .setNeutralButton("Clear All-Time Stats") { dialog, which ->
-                showDeleteCumulativeStatsConfirmation()
             }
             .setNegativeButton("Close", null)
             .create()
@@ -2280,11 +2277,6 @@ class MainActivity : AppCompatActivity() {
             positiveButton.setBackgroundColor(Color.TRANSPARENT)
             positiveButton.setTypeface(null, Typeface.BOLD)
 
-            // Make "Clear All-Time Stats" red (danger)
-            neutralButton.setTextColor(Color.RED)
-            neutralButton.setBackgroundColor(Color.TRANSPARENT)
-            neutralButton.setTypeface(null, Typeface.BOLD)
-
             // Make "Close" dark gray
             negativeButton.setTextColor(Color.DKGRAY)
             negativeButton.setBackgroundColor(Color.TRANSPARENT)
@@ -2294,50 +2286,9 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun showDeleteCumulativeStatsConfirmation() {
-        val cumulativeStats = loadCumulativeStats()
-        val totalGames = cumulativeStats.totalGamesProcessed
-
-        if (totalGames == 0) {
-            Toast.makeText(this, "No cumulative stats to delete", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Delete All-Time Stats")
-            .setMessage("Are you sure you want to delete ALL lifetime statistics?\n\n" +
-                    "This will permanently delete:\n" +
-                    "• $totalGames all-time games\n" +
-                    "• All player win/loss records\n" +
-                    "• All head-to-head statistics\n\n" +
-                    "This action cannot be undone!")
-            .setPositiveButton("DELETE ALL STATS") { dialog, which ->
-                deleteCumulativeStats()
-            }
-            .setNegativeButton("Cancel", null)
-            .create()
-            .apply {
-                setOnShowListener {
-                    val positiveButton = getButton(AlertDialog.BUTTON_POSITIVE)
-                    val negativeButton = getButton(AlertDialog.BUTTON_NEGATIVE)
-
-                    // Make "DELETE ALL STATS" red and bold
-                    positiveButton.setTextColor(Color.RED)
-                    positiveButton.setBackgroundColor(Color.TRANSPARENT)
-                    positiveButton.setTypeface(null, Typeface.BOLD)
-
-                    // Make "Cancel" dark gray
-                    negativeButton.setTextColor(Color.DKGRAY)
-                    negativeButton.setBackgroundColor(Color.TRANSPARENT)
-                    negativeButton.setTypeface(null, Typeface.BOLD)
-                }
-            }
-            .show()
-    }
-
     private fun showGamesForDate(games: List<GameHistory>, dateTitle: String) {
         // Create a custom dialog with table layout
-        val dialog = AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setTitle(dateTitle)
             .setPositiveButton("Back to Dates") { dialog, which ->
                 showGameHistory()
@@ -2586,7 +2537,7 @@ class MainActivity : AppCompatActivity() {
         // ADD THIS: Game type indicator
         val gameType = if (game.playerNames.isDoubles) "Doubles" else "Singles"
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setTitle("Game Details")
             .setMessage(
                 "$player1Display vs $player2Display\n\n" +
@@ -2686,7 +2637,7 @@ class MainActivity : AppCompatActivity() {
             game.playerNames.team2Player1
         }
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setTitle("Delete Game")
             .setMessage("Are you sure you want to delete this game?\n\n" +
                     "$player1Display vs $player2Display\n" +
@@ -2937,7 +2888,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun clearGameHistory() {
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setTitle("Clear History")
             .setMessage("Are you sure you want to clear all game history?")
             .setPositiveButton("Clear") { dialog, which ->
