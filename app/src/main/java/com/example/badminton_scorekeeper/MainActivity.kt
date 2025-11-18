@@ -259,6 +259,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val pronunciationDictionary = mutableMapOf(
+        // Add your custom pronunciations here
+        "Shabaana" to "Sha-ban-uh"
+        // Add more names and words as needed
+    )
+
+    private val availableLocales = mutableListOf<Locale>()
+    private var currentLocale = Locale.US
+    private lateinit var ttsSettingsButton: Button
+    private var currentSpeechRate = 1f
+    private var currentPitch = 1f
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -274,6 +286,8 @@ class MainActivity : AppCompatActivity() {
         setupSwipeDetection()
         initializeSound()
         initializeTextToSpeech()
+        loadTTSSettings()
+        loadPronunciationDictionary()
         loadHistoryFromPrefs()
         checkAndRequestBluetoothPermissions()
         checkAndStartGameTimer()
@@ -301,6 +315,7 @@ class MainActivity : AppCompatActivity() {
         swapNamesButton = findViewById(R.id.swapNamesButton)
         doublesModeToggle = findViewById(R.id.doublesModeToggle)
         statsButton = findViewById(R.id.statsButton)
+        ttsSettingsButton = findViewById(R.id.ttsSettingsButton)
 
         // NEW: Doubles mode views
         nameInputLayout = findViewById(R.id.nameInputLayout)
@@ -465,6 +480,10 @@ class MainActivity : AppCompatActivity() {
 
         statsButton.setOnClickListener {
             showStatsPage()
+        }
+
+        ttsSettingsButton.setOnClickListener {
+            showTTSSettingsDialog()
         }
     }
 
@@ -1810,20 +1829,333 @@ class MainActivity : AppCompatActivity() {
     private fun initializeTextToSpeech() {
         textToSpeech = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val result = textToSpeech.setLanguage(Locale.US)
-                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    Log.e("TTS", "Language not supported")
-                    ttsInitialized = false
-                } else {
-                    ttsInitialized = true
-                }
+                ttsInitialized = true
+
+                // Load available languages FIRST
+                loadAvailableLanguages()
+
+                // THEN load and apply saved settings
+                loadTTSSettings()
+
+                Log.d("TTS", "TTS initialized successfully")
             } else {
                 Log.e("TTS", "Text-to-Speech initialization failed")
                 ttsInitialized = false
             }
         }
-        textToSpeech.setSpeechRate(0.7f)
-        textToSpeech.setPitch(0.9f)
+    }
+
+    private fun getPronouncedText(text: String): String {
+        var processedText = text
+        pronunciationDictionary.forEach { (original, pronunciation) ->
+            processedText = processedText.replace(original, pronunciation, ignoreCase = true)
+        }
+        return processedText
+    }
+
+    private fun showTTSSettingsDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.tts_settings_dialog, null)
+
+        val pronunciationEdit = dialogView.findViewById<EditText>(R.id.pronunciationEdit)
+        val languageSpinner = dialogView.findViewById<Spinner>(R.id.languageSpinner)
+        val speechRateSeekBar = dialogView.findViewById<SeekBar>(R.id.speechRateSeekBar)
+        val pitchSeekBar = dialogView.findViewById<SeekBar>(R.id.pitchSeekBar)
+
+        val testButton = dialogView.findViewById<Button>(R.id.testTtsButton)
+        val viewPronunciationsButton = dialogView.findViewById<Button>(R.id.viewPronunciationsButton)
+
+        // Setup language spinner with ALL available locales
+        val localeDisplayNames = availableLocales.map { locale ->
+            "${locale.displayLanguage} (${locale.language}-${locale.country}) - ${locale.displayCountry}"
+        }
+
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, localeDisplayNames)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        languageSpinner.adapter = adapter
+
+        // Find and set current locale in spinner
+        val currentLocaleIndex = availableLocales.indexOfFirst {
+            it.language == currentLocale.language && it.country == currentLocale.country
+        }
+
+        if (currentLocaleIndex >= 0) {
+            languageSpinner.setSelection(currentLocaleIndex)
+            Log.d("TTS", "Set spinner to index: $currentLocaleIndex (${currentLocale.language}-${currentLocale.country})")
+        } else {
+            // If current locale not found, try to find US English
+            val usEnglishIndex = availableLocales.indexOfFirst {
+                it.language == "en" && it.country == "US"
+            }
+            if (usEnglishIndex >= 0) {
+                languageSpinner.setSelection(usEnglishIndex)
+                Log.d("TTS", "Current locale not found, set to US English at index: $usEnglishIndex")
+            } else {
+                // Fallback to first available
+                languageSpinner.setSelection(0)
+                Log.w("TTS", "Current locale not in available list, using first available")
+            }
+        }
+
+        // Setup seek bars with current stored values
+        speechRateSeekBar.progress = ((currentSpeechRate - 0.1f) / 1.9f * 100).toInt()
+        pitchSeekBar.progress = ((currentPitch - 0.5f) / 1.5f * 100).toInt()
+
+        val dialog = AlertDialog.Builder(this, R.style.CustomDialogTheme)
+            .setTitle("TTS Settings")
+            .setView(dialogView)
+            .setPositiveButton("Save") { dialog, which ->
+                // Save selected locale
+                val selectedIndex = languageSpinner.selectedItemPosition
+                if (selectedIndex in availableLocales.indices) {
+                    currentLocale = availableLocales[selectedIndex]
+                    Log.d("TTS", "User selected locale: ${currentLocale.language}-${currentLocale.country}")
+                }
+
+                // Save speech rate and pitch
+                currentSpeechRate = 0.1f + (speechRateSeekBar.progress / 100f) * 1.9f
+                currentPitch = 0.5f + (pitchSeekBar.progress / 100f) * 1.5f
+
+                // Save custom pronunciation if provided
+                val pronunciationText = pronunciationEdit.text.toString().trim()
+                if (pronunciationText.isNotEmpty()) {
+                    val parts = pronunciationText.split("=")
+                    if (parts.size == 2) {
+                        val original = parts[0].trim()
+                        val pronunciation = parts[1].trim()
+
+                        if (original.isNotEmpty() && pronunciation.isNotEmpty()) {
+                            pronunciationDictionary[original] = pronunciation
+                            savePronunciationDictionary()
+                            Toast.makeText(this, "Pronunciation added: '$original' -> '$pronunciation'", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this, "Please enter both original word and pronunciation", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(this, "Please use format: original=pronunciation", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                // Save and apply ALL settings
+                saveTTSSettings()
+                applyTTSSettings()
+
+                Toast.makeText(this, "TTS settings saved!", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        // Set up test button - use EXACTLY what's selected in the dialog
+        testButton.setOnClickListener {
+            val testRate = 0.1f + (speechRateSeekBar.progress / 100f) * 1.9f
+            val testPitch = 0.5f + (pitchSeekBar.progress / 100f) * 1.5f
+
+            // Use the currently selected locale from spinner
+            val testLocaleIndex = languageSpinner.selectedItemPosition
+            val testLocale = if (testLocaleIndex in availableLocales.indices) {
+                availableLocales[testLocaleIndex]
+            } else {
+                currentLocale // fallback
+            }
+
+            // Apply test settings temporarily
+            try {
+                textToSpeech.setLanguage(testLocale)
+                textToSpeech.setSpeechRate(testRate)
+                textToSpeech.setPitch(testPitch)
+
+                val testText = if (pronunciationEdit.text.isNotEmpty()) {
+                    val parts = pronunciationEdit.text.toString().split("=")
+                    if (parts.size == 2) {
+                        "Testing pronunciation: ${parts[0]} should sound like ${parts[1]}"
+                    } else {
+                        "Testing text to speech with current dialog settings"
+                    }
+                } else {
+                    "Testing text to speech with current dialog settings"
+                }
+
+                val pronouncedTestText = getPronouncedText(testText)
+                textToSpeech.speak(pronouncedTestText, TextToSpeech.QUEUE_FLUSH, null, null)
+
+                val settingsInfo = "Testing: ${testLocale.displayLanguage}, Rate: ${"%.1f".format(testRate)}, Pitch: ${"%.1f".format(testPitch)}"
+                Toast.makeText(this, settingsInfo, Toast.LENGTH_SHORT).show()
+
+            } catch (e: Exception) {
+                Log.e("TTS", "Error testing TTS: ${e.message}")
+                Toast.makeText(this, "Error testing TTS settings", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Set up view pronunciations button (keep your existing code)
+        viewPronunciationsButton.setOnClickListener {
+            if (pronunciationDictionary.isEmpty()) {
+                Toast.makeText(this, "No custom pronunciations set", Toast.LENGTH_SHORT).show()
+            } else {
+                val pronunciationList = pronunciationDictionary.entries.joinToString("\n") {
+                    "• ${it.key} → ${it.value}"
+                }
+
+                val pronunciationDialogView = LayoutInflater.from(this).inflate(R.layout.pronunciation_list_dialog, null)
+                val pronunciationListView = pronunciationDialogView.findViewById<ListView>(R.id.pronunciationListView)
+
+                val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1,
+                    pronunciationDictionary.entries.map { "${it.key} → ${it.value}" })
+                pronunciationListView.adapter = adapter
+
+                pronunciationListView.onItemClickListener = AdapterView.OnItemClickListener { parent, view, position, id ->
+                    val selectedItem = adapter.getItem(position) as String
+                    val originalWord = selectedItem.split(" → ")[0]
+
+                    AlertDialog.Builder(this, R.style.CustomDialogTheme)
+                        .setTitle("Delete Pronunciation")
+                        .setMessage("Delete pronunciation for '$originalWord'?")
+                        .setPositiveButton("Delete") { deleteDialog, which ->
+                            pronunciationDictionary.remove(originalWord)
+                            savePronunciationDictionary()
+                            adapter.remove(selectedItem)
+                            adapter.notifyDataSetChanged()
+                            Toast.makeText(this, "Pronunciation deleted", Toast.LENGTH_SHORT).show()
+
+                            if (pronunciationDictionary.isEmpty()) {
+                                (deleteDialog as AlertDialog).dismiss()
+                            }
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+
+                AlertDialog.Builder(this, R.style.CustomDialogTheme)
+                    .setTitle("Custom Pronunciations (${pronunciationDictionary.size} total)")
+                    .setView(pronunciationDialogView)
+                    .setPositiveButton("Close", null)
+                    .show()
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun saveTTSSettings() {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        prefs.edit().apply {
+            putFloat("tts_speech_rate", currentSpeechRate)
+            putFloat("tts_pitch", currentPitch)
+            // Store locale as string for persistence
+            putString("tts_language", "${currentLocale.language}-${currentLocale.country}")
+            apply()
+        }
+        Log.d("TTS", "Settings saved: ${currentLocale.language}-${currentLocale.country}")
+    }
+
+    private fun loadTTSSettings() {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        currentSpeechRate = prefs.getFloat("tts_speech_rate", 1.0f)
+        currentPitch = prefs.getFloat("tts_pitch", 1.0f)
+
+        // Load saved language with better error handling
+        val savedLocaleString = prefs.getString("tts_language", null)
+        if (!savedLocaleString.isNullOrEmpty()) {
+            try {
+                // Parse the saved locale string (format: "en-US")
+                val parts = savedLocaleString.split("-")
+                val savedLocale = when (parts.size) {
+                    1 -> Locale(parts[0])
+                    2 -> Locale(parts[0], parts[1])
+                    else -> {
+                        Log.w("TTS", "Unexpected locale format: $savedLocaleString")
+                        null
+                    }
+                }
+
+                // Check if the saved locale is still available
+                if (savedLocale != null) {
+                    val isLocaleAvailable = availableLocales.any { it.language == savedLocale.language && it.country == savedLocale.country }
+
+                    if (isLocaleAvailable) {
+                        currentLocale = savedLocale
+                        Log.d("TTS", "Loaded saved locale: $savedLocaleString")
+                    } else {
+                        Log.w("TTS", "Saved locale not available: $savedLocaleString")
+                        currentLocale = findBestAvailableLocale(savedLocale) ?: Locale.US
+                    }
+                } else {
+                    // Invalid saved format, default to US English
+                    currentLocale = Locale.US
+                    Log.w("TTS", "Invalid saved locale format, defaulting to US English")
+                }
+
+            } catch (e: Exception) {
+                Log.e("TTS", "Error loading locale: ${e.message}")
+                currentLocale = Locale.US
+            }
+        } else {
+            // No saved locale - DEFAULT TO US ENGLISH
+            currentLocale = Locale.US
+            Log.d("TTS", "No saved locale, defaulting to US English")
+
+            // Check if US English is available, if not use best available
+            val isUSAvailable = availableLocales.any { it.language == "en" && it.country == "US" }
+            if (!isUSAvailable) {
+                currentLocale = findBestAvailableLocale(Locale.US) ?: availableLocales.firstOrNull() ?: Locale.US
+                Log.w("TTS", "US English not available, using: ${currentLocale.language}-${currentLocale.country}")
+            }
+        }
+
+        // Apply loaded settings
+        applyTTSSettings()
+        Log.d("TTS", "Final locale: ${currentLocale.language}-${currentLocale.country}")
+    }
+
+    private fun findBestAvailableLocale(preferredLocale: Locale): Locale? {
+        // First try exact match
+        availableLocales.firstOrNull { it.language == preferredLocale.language && it.country == preferredLocale.country }?.let {
+            return it
+        }
+
+        // Then try language match only
+        availableLocales.firstOrNull { it.language == preferredLocale.language }?.let {
+            return it
+        }
+
+        // For English, try other English variants
+        if (preferredLocale.language == "en") {
+            availableLocales.firstOrNull { it.language == "en" }?.let {
+                return it
+            }
+        }
+
+        // Finally, return first available locale or US English
+        return availableLocales.firstOrNull() ?: Locale.US
+    }
+
+    private fun applyTTSSettings() {
+        if (!ttsInitialized) return
+
+        try {
+            // Set language with proper error handling
+            val result = textToSpeech.setLanguage(currentLocale)
+            when (result) {
+                TextToSpeech.LANG_MISSING_DATA -> {
+                    Log.e("TTS", "Language data missing for: $currentLocale")
+                    // Fallback to default
+                    textToSpeech.setLanguage(Locale.getDefault())
+                }
+                TextToSpeech.LANG_NOT_SUPPORTED -> {
+                    Log.e("TTS", "Language not supported: $currentLocale")
+                    // Fallback to default
+                    textToSpeech.setLanguage(Locale.getDefault())
+                }
+                TextToSpeech.LANG_AVAILABLE -> {
+                    Log.d("TTS", "Language set successfully: $currentLocale")
+                }
+            }
+
+            textToSpeech.setSpeechRate(currentSpeechRate)
+            textToSpeech.setPitch(currentPitch)
+
+        } catch (e: Exception) {
+            Log.e("TTS", "Error applying TTS settings: ${e.message}")
+        }
     }
 
     private fun playScoreSound() {
@@ -1907,7 +2239,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun announceScore(isPlayer1Scored: Boolean) {
         if (!soundEnabled || !ttsInitialized) return
+
         try {
+            // Apply current settings before speaking
+            applyTTSSettings()
+
             val servingScore: Int
             val receivingScore: Int
             val servingPlayerName: String
@@ -1936,12 +2272,13 @@ class MainActivity : AppCompatActivity() {
             }
 
             val announcement = if (isGamePointForScoringPlayer(isPlayer1Scored)) {
-                "Game point, $servingScore - $receivingScore, $servingPlayerName serving $receivingPlayerName"
+                "Game point, $servingScore - $receivingScore, ${getPronouncedText(servingPlayerName)} serving ${getPronouncedText(receivingPlayerName)}"
             } else {
-                "$servingScore - $receivingScore, $servingPlayerName serving $receivingPlayerName"
+                "${getPronouncedText("$servingScore")} - ${getPronouncedText("$receivingScore")}, ${getPronouncedText(servingPlayerName)} serving ${getPronouncedText(receivingPlayerName)}"
             }
 
             textToSpeech.speak(announcement, TextToSpeech.QUEUE_FLUSH, null, null)
+
         } catch (e: Exception) {
             Log.e("MainActivity", "Error announcing score: ${e.message}")
         }
@@ -3120,10 +3457,88 @@ class MainActivity : AppCompatActivity() {
         prefs.edit().putString(prefsCumulativeStatsKey, json).apply()
     }
 
-    // Method to delete cumulative stats
-    private fun deleteCumulativeStats() {
+    private fun loadAvailableLanguages() {
+        availableLocales.clear()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                val voices = textToSpeech.voices
+                // Get ALL available locales, not just English
+                val uniqueLocales = voices.map { it.locale }.distinct()
+
+                availableLocales.addAll(uniqueLocales)
+                Log.d("TTS", "Found ${availableLocales.size} locales from voices")
+
+            } catch (e: Exception) {
+                Log.e("TTS", "Error loading voices: ${e.message}")
+                loadFallbackLocales()
+            }
+        } else {
+            loadFallbackLocales()
+        }
+
+        // Sort by display name for better user experience
+        availableLocales.sortWith { loc1, loc2 ->
+            loc1.displayName.compareTo(loc2.displayName)
+        }
+
+        // Add a default option if empty
+        if (availableLocales.isEmpty()) {
+            availableLocales.add(Locale.getDefault())
+        }
+
+        Log.d("TTS", "Available locales: ${availableLocales.size}")
+    }
+
+    private fun loadFallbackLocales() {
+        // Add common locales as fallback
+        val fallbackLocales = listOf(
+            Locale.US,
+            Locale.UK,
+            Locale.CANADA,
+            Locale.FRENCH,
+            Locale.GERMAN,
+            Locale.ITALIAN,
+            Locale.JAPANESE,
+            Locale.KOREAN,
+            Locale.CHINESE,
+            Locale("es", "ES"), // Spanish
+            Locale("pt", "BR"), // Portuguese
+            Locale("ru", "RU"), // Russian
+            Locale("ar", "SA"), // Arabic
+            Locale("hi", "IN"), // Hindi
+            Locale("tr", "TR")  // Turkish
+        )
+
+        fallbackLocales.forEach { locale ->
+            if (textToSpeech.isLanguageAvailable(locale) >= TextToSpeech.LANG_AVAILABLE) {
+                availableLocales.add(locale)
+            }
+        }
+
+        if (availableLocales.isEmpty()) {
+            availableLocales.add(Locale.getDefault())
+        }
+    }
+
+    private fun savePronunciationDictionary() {
         val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
-        prefs.edit().remove(prefsCumulativeStatsKey).apply()
-        Toast.makeText(this, "Cumulative stats deleted", Toast.LENGTH_SHORT).show()
+        val json = Gson().toJson(pronunciationDictionary)
+        prefs.edit().putString("pronunciation_dictionary", json).apply()
+    }
+
+    private fun loadPronunciationDictionary() {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val json = prefs.getString("pronunciation_dictionary", null)
+        if (!json.isNullOrEmpty()) {
+            try {
+                val type = object : TypeToken<Map<String, String>>() {}.type
+                val loadedDict = Gson().fromJson<Map<String, String>>(json, type)
+                pronunciationDictionary.clear()
+                pronunciationDictionary.putAll(loadedDict)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading pronunciation dictionary: ${e.message}")
+            }
+        }
     }
 }

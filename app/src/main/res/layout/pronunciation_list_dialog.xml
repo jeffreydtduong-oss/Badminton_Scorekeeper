@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tap on a pronunciation to delete it"
+        android:textSize="12sp"
+        android:textColor="#666666"
+        android:gravity="center"
+        android:layout_marginBottom="8dp" />
+
+    <ListView
+        android:id="@+id/pronunciationListView"
+        android:layout_width="match_parent"
+        android:layout_height="300dp" />
+
+</LinearLayout>
