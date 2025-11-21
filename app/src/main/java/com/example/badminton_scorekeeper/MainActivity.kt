@@ -1568,21 +1568,31 @@ class MainActivity : AppCompatActivity() {
                     var deltaX = endX - swipeStartX
                     var deltaY = swipeStartY - endY
 
-                    val orientation = resources.configuration.orientation
                     val rotation = windowManager.defaultDisplay.rotation
 
-                    if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                        when (rotation) {
-                            Surface.ROTATION_90 -> {
-                                val temp = deltaY
-                                deltaY = -deltaX
-                                deltaX = temp
-                            }
-                            Surface.ROTATION_270 -> {
-                                val temp = deltaY
-                                deltaY = deltaX
-                                deltaX = -temp
-                            }
+                    // Handle all rotation cases
+                    when (rotation) {
+                        Surface.ROTATION_0 -> {
+                            // Default portrait - no change needed
+                            // Left swipe = P1, Right swipe = P2
+                        }
+                        Surface.ROTATION_90 -> {
+                            // Landscape - home button on left
+                            val temp = deltaY
+                            deltaY = -deltaX
+                            deltaX = temp
+                        }
+                        Surface.ROTATION_180 -> {
+                            // Reverse portrait - home button on top (upside down)
+                            // Reverse both X and Y axes
+                            deltaX = -deltaX
+                            deltaY = -deltaY
+                        }
+                        Surface.ROTATION_270 -> {
+                            // Landscape - home button on right
+                            val temp = deltaY
+                            deltaY = deltaX
+                            deltaX = -temp
                         }
                     }
 
