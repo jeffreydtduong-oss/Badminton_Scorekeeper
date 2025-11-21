@@ -428,15 +428,6 @@ class MainActivity : AppCompatActivity() {
             showNameEntryDialog(isDoublesMode)
         }
 
-        // Also update the team name click listeners
-        team1Header.setOnClickListener {
-            showNameEntryDialog(isDoublesMode)
-        }
-
-        team2Header.setOnClickListener {
-            showNameEntryDialog(isDoublesMode)
-        }
-
         // Make sure the team names themselves are also clickable
         team1Name.setOnClickListener {
             showNameEntryDialog(isDoublesMode)
@@ -445,6 +436,12 @@ class MainActivity : AppCompatActivity() {
         team2Name.setOnClickListener {
             showNameEntryDialog(isDoublesMode)
         }
+
+        // Make serving indicators NON-CLICKABLE
+        team1ServeIndicator.setOnClickListener(null)
+        team2ServeIndicator.setOnClickListener(null)
+        team1ServeIndicator.isClickable = false
+        team2ServeIndicator.isClickable = false
 
         winningPointsButton.setOnClickListener {
             showWinningPointsDialog()
@@ -1538,22 +1535,6 @@ class MainActivity : AppCompatActivity() {
                 }
                 true
             }
-        }
-    }
-
-    private fun clearEditTextFocus() {
-        player1NameInput.clearFocus()
-        player2NameInput.clearFocus()
-    }
-
-    private fun isGameControlKey(keyCode: Int): Boolean {
-        return when (keyCode) {
-            keyPlayer1Score, keyPlayer2Score, keyPlayer1Remove, keyPlayer2Remove,
-            keyResetGame, keySwapServe, keyUndoLast,
-            KeyEvent.KEYCODE_NUMPAD_1, KeyEvent.KEYCODE_NUMPAD_2, KeyEvent.KEYCODE_NUMPAD_3,
-            KeyEvent.KEYCODE_NUMPAD_4, KeyEvent.KEYCODE_NUMPAD_5, KeyEvent.KEYCODE_NUMPAD_6,
-            KeyEvent.KEYCODE_NUMPAD_7 -> true
-            else -> false
         }
     }
 
@@ -3328,21 +3309,6 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
         val json = Gson().toJson(stats)
         prefs.edit().putString(prefsStatsKey, json).apply()
-    }
-
-    private fun loadStatsFromPrefs(): StatsData {
-        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
-        val json = prefs.getString(prefsStatsKey, null)
-        return if (!json.isNullOrEmpty()) {
-            try {
-                Gson().fromJson(json, StatsData::class.java)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error loading stats: ${e.message}")
-                StatsData()
-            }
-        } else {
-            StatsData()
-        }
     }
 
     private fun updateStats() {
