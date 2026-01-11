@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -23,7 +22,11 @@ import android.os.Vibrator
 import android.view.KeyEvent
 import androidx.core.content.ContextCompat
 import android.Manifest
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.content.res.Configuration
 import androidx.core.app.ActivityCompat
 import android.util.Log
 import android.view.MotionEvent
@@ -2257,6 +2260,10 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
+            if (bonusSoundEnabled && isSixSevenScore(servingScore, receivingScore)) {
+                animateScoresSimple()  // Add animation
+            }
+
             if (bonusSoundEnabled && isNineElevenScore(servingScore, receivingScore)) {
                 playNineElevenSound()
                 return
@@ -2285,6 +2292,70 @@ class MainActivity : AppCompatActivity() {
     private fun isNineElevenScore(servingScore: Int, receivingScore: Int): Boolean {
         return (servingScore == 9 && receivingScore == 11) ||
                 (servingScore == 11 && receivingScore == 9)
+    }
+
+    private fun isSixSevenScore(servingScore: Int, receivingScore: Int): Boolean {
+        return (servingScore == 6 && receivingScore == 7) ||
+                (servingScore == 7 && receivingScore == 6) ||
+                (servingScore == 16 && receivingScore == 7) ||  // 16-7
+                (servingScore == 7 && receivingScore == 16) ||  // 7-16
+                (servingScore == 16 && receivingScore == 17) || // 16-17
+                (servingScore == 17 && receivingScore == 16) || // 17-16
+                (servingScore == 6 && receivingScore == 17) || // 6-17
+                (servingScore == 17 && receivingScore == 6)    // 17-6
+    }
+
+    private fun animateScoresSimple() {
+        runOnUiThread {
+            try {
+                val screenHeight = resources.displayMetrics.heightPixels
+
+                // Check if we're in landscape mode
+                val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+                // Adjust multiplier based on orientation
+                val multiplier = if (isLandscape) 0.10f else 0.25f // Less movement in landscape
+
+                val maxMovement = (screenHeight * multiplier).coerceAtLeast(100f) // Minimum 100px
+
+                // Create a ValueAnimator for smooth continuous motion
+                val animator = ValueAnimator.ofFloat(0f, 5f) // 5 seconds
+                animator.duration = 5000 // 5 seconds total
+
+                animator.addUpdateListener { animation ->
+                    val time = animation.animatedValue as Float
+
+                    // Create a sine wave: goes from -1 to 1 and back
+                    // 2 cycles per second for visible bouncing
+                    val sineValue = Math.sin(time * Math.PI * 2).toFloat()
+
+                    // Player 1 moves with the sine wave
+                    player1ScoreText.translationY = sineValue * maxMovement
+
+                    // Player 2 moves OPPOSITE to the sine wave
+                    player2ScoreText.translationY = -sineValue * maxMovement
+                }
+
+                animator.addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        // Reset both to original position
+                        player1ScoreText.animate()
+                            .translationY(0f)
+                            .setDuration(300)
+                            .start()
+                        player2ScoreText.animate()
+                            .translationY(0f)
+                            .setDuration(300)
+                            .start()
+                    }
+                })
+
+                animator.start()
+
+            } catch (e: Exception) {
+                Log.e("Animation", "Animation failed: ${e.message}")
+            }
+        }
     }
 
     private fun isGamePointForScoringPlayer(isPlayer1Scored: Boolean): Boolean {
