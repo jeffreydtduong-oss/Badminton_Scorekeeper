@@ -1114,6 +1114,8 @@ class MainActivity : AppCompatActivity() {
 
             saveCurrentState()
 
+            updatePlayerDisplay()
+            updateServeHighlight()
         } else {
             // For singles, ensure we have 2 players
             if (selectedPlayers.isEmpty()) {
@@ -1138,6 +1140,9 @@ class MainActivity : AppCompatActivity() {
             isPlayer1Serving = true
             team1ServePosition = 0
             team2ServePosition = 0
+
+            updatePlayerDisplay()
+            updateServeHighlight()
         }
 
         savePlayerNamesToPrefs()
@@ -1782,6 +1787,7 @@ class MainActivity : AppCompatActivity() {
                     player2Button.text = "+1"
 
                     updateScoreDisplay()
+                    updatePlayerDisplay()
                     showKeyPressFeedback("Undo last action")
                 } else {
                     showKeyPressFeedback("Nothing to undo")
