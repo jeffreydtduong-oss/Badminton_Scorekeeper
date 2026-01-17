@@ -232,14 +232,6 @@
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:maxEms="8" />
-
-                <ImageView
-                    android:id="@+id/serveIndicator1"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/shuttle_image"
-                    android:visibility="invisible"
-                    android:layout_marginStart="4dp" />
             </LinearLayout>
 
             <!-- Team 1 Layout -->
@@ -251,7 +243,7 @@
                 android:gravity="center"
                 android:visibility="gone">
 
-                <!-- Team Name Display - Styled like singles but for doubles -->
+                <!-- Team Name Display -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -272,50 +264,64 @@
                         android:maxLines="1"
                         android:ellipsize="end"
                         android:maxEms="12" />
-
-                    <ImageView
-                        android:id="@+id/team1ServeIcon"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/shuttle_image"
-                        android:visibility="invisible"
-                        android:layout_marginStart="4dp" />
                 </LinearLayout>
 
-                <!-- Serving Indicator - Separate from the team name -->
+                <!-- Serving Indicator for Doubles -->
                 <TextView
                     android:id="@+id/team1ServeIndicator"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="Serving: Player"
-                    android:textSize="30sp"
+                    android:textSize="14sp"
                     android:gravity="center"
                     android:maxLines="2"
                     android:textColor="#1976D2"
                     android:textStyle="bold"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="4dp" />
             </LinearLayout>
 
-            <!-- Score -->
-            <TextView
-                android:id="@+id/player1Score"
+            <!-- Score Container with Highlight -->
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:gravity="center"
-                android:text="0"
-                android:textSize="150sp"
-                android:textStyle="bold"
-                android:textColor="#1976D2"
-                android:includeFontPadding="false"
-                android:lineSpacingMultiplier="0.8"
-                android:shadowColor="#80000000"
-                android:shadowDx="2"
-                android:shadowDy="2"
-                android:shadowRadius="4"
-                android:scaleX="1.1"
-                android:scaleY="1.1"/>
+                android:padding="12dp">
 
+                <!-- Highlight Background -->
+                <View
+                    android:id="@+id/player1ServeHighlight"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/serving_highlight"
+                    android:visibility="invisible"
+                    android:clickable="false"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false" />
+
+                <!-- Score Display -->
+                <TextView
+                    android:id="@+id/player1Score"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textSize="130sp"
+                    android:textStyle="bold"
+                    android:textColor="#1976D2"
+                    android:includeFontPadding="false"
+                    android:lineSpacingMultiplier="0.8"
+                    android:shadowColor="#80000000"
+                    android:shadowDx="2"
+                    android:shadowDy="2"
+                    android:shadowRadius="4"
+                    android:scaleX="1.1"
+                    android:scaleY="1.1"
+                    android:clickable="false"
+                    android:focusable="false" />
+            </FrameLayout>
+
+            <!-- Buttons Layout -->
             <LinearLayout
                 android:id="@+id/player1ButtonLayout"
                 android:layout_width="match_parent"
@@ -398,14 +404,6 @@
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:maxEms="8" />
-
-                <ImageView
-                    android:id="@+id/serveIndicator2"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/shuttle_image"
-                    android:visibility="invisible"
-                    android:layout_marginStart="4dp" />
             </LinearLayout>
 
             <!-- Team 2 Layout -->
@@ -417,7 +415,7 @@
                 android:gravity="center"
                 android:visibility="gone">
 
-                <!-- Team Name Display - Styled like singles but for doubles -->
+                <!-- Team Name Display -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -438,50 +436,64 @@
                         android:maxLines="1"
                         android:ellipsize="end"
                         android:maxEms="12" />
-
-                    <ImageView
-                        android:id="@+id/team2ServeIcon"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/shuttle_image"
-                        android:visibility="invisible"
-                        android:layout_marginStart="4dp" />
                 </LinearLayout>
 
-                <!-- Serving Indicator - Separate from the team name -->
+                <!-- Serving Indicator for Doubles -->
                 <TextView
                     android:id="@+id/team2ServeIndicator"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="Serving: Player"
-                    android:textSize="30sp"
+                    android:textSize="14sp"
                     android:gravity="center"
                     android:maxLines="2"
                     android:textColor="#D32F2F"
                     android:textStyle="bold"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="4dp" />
             </LinearLayout>
 
-            <!-- Score -->
-            <TextView
-                android:id="@+id/player2Score"
+            <!-- Score Container with Highlight -->
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:gravity="center"
-                android:text="0"
-                android:textSize="150sp"
-                android:textStyle="bold"
-                android:textColor="#D32F2F"
-                android:includeFontPadding="false"
-                android:lineSpacingMultiplier="0.8"
-                android:shadowColor="#80000000"
-                android:shadowDx="2"
-                android:shadowDy="2"
-                android:shadowRadius="4"
-                android:scaleX="1.1"
-                android:scaleY="1.1"/>
+                android:padding="12dp">
 
+                <!-- Highlight Background -->
+                <View
+                    android:id="@+id/player2ServeHighlight"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/serving_highlight"
+                    android:visibility="invisible"
+                    android:clickable="false"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false" />
+
+                <!-- Score Display -->
+                <TextView
+                    android:id="@+id/player2Score"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textSize="130sp"
+                    android:textStyle="bold"
+                    android:textColor="#D32F2F"
+                    android:includeFontPadding="false"
+                    android:lineSpacingMultiplier="0.8"
+                    android:shadowColor="#80000000"
+                    android:shadowDx="2"
+                    android:shadowDy="2"
+                    android:shadowRadius="4"
+                    android:scaleX="1.1"
+                    android:scaleY="1.1"
+                    android:clickable="false"
+                    android:focusable="false" />
+            </FrameLayout>
+
+            <!-- Buttons Layout -->
             <LinearLayout
                 android:id="@+id/player2ButtonLayout"
                 android:layout_width="match_parent"

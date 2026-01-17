@@ -144,8 +144,8 @@ class MainActivity : AppCompatActivity() {
     // UI elements
     private lateinit var player1ScoreText: TextView
     private lateinit var player2ScoreText: TextView
-    private lateinit var serveIndicator1: ImageView
-    private lateinit var serveIndicator2: ImageView
+    private lateinit var player1ServeHighlight: View
+    private lateinit var player2ServeHighlight: View
     private lateinit var player1Button: Button
     private lateinit var player2Button: Button
     private lateinit var player1RemoveButton: Button
@@ -242,8 +242,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var team2Header: LinearLayout
     private lateinit var team1ServeIndicator: TextView
     private lateinit var team2ServeIndicator: TextView
-    private lateinit var team1ServeIcon: ImageView
-    private lateinit var team2ServeIcon: ImageView
     private lateinit var team1Name: TextView
     private lateinit var team2Name: TextView
     private var team1CurrentEvenPlayer: Int = 0 // Tracks who is CURRENTLY on even side
@@ -299,8 +297,8 @@ class MainActivity : AppCompatActivity() {
     private fun initializeViews() {
         player1ScoreText = findViewById(R.id.player1Score)
         player2ScoreText = findViewById(R.id.player2Score)
-        serveIndicator1 = findViewById(R.id.serveIndicator1)
-        serveIndicator2 = findViewById(R.id.serveIndicator2)
+        player1ServeHighlight = findViewById(R.id.player1ServeHighlight)
+        player2ServeHighlight = findViewById(R.id.player2ServeHighlight)
         player1Button = findViewById(R.id.player1Button)
         player2Button = findViewById(R.id.player2Button)
         player1RemoveButton = findViewById(R.id.player1RemoveButton)
@@ -329,8 +327,6 @@ class MainActivity : AppCompatActivity() {
         team2Header = findViewById(R.id.team2Header)
         team1ServeIndicator = findViewById(R.id.team1ServeIndicator)
         team2ServeIndicator = findViewById(R.id.team2ServeIndicator)
-        team1ServeIcon = findViewById(R.id.team1ServeIcon)
-        team2ServeIcon = findViewById(R.id.team2ServeIcon)
         team1Name = findViewById(R.id.team1Name)
         team2Name = findViewById(R.id.team2Name)
     }
@@ -551,10 +547,12 @@ class MainActivity : AppCompatActivity() {
     // Core game methods
     private fun updateServeStatus(pointScoredByPlayer1: Boolean) {
         if (!isDoublesMode) {
-            // Singles mode logic (existing)
+            // Singles mode logic
             if (pointScoredByPlayer1 != isPlayer1Serving) {
                 isPlayer1Serving = !isPlayer1Serving
             }
+            updateServeHighlight() // Update the highlight
+            updatePlayerDisplay() // ADD THIS LINE - Update text display too
             return
         }
 
@@ -590,6 +588,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        updateServeHighlight() // Update the highlight for doubles too
+        updatePlayerDisplay() // ADD THIS LINE - Update text display too
     }
 
     private fun getCurrentServerName(): String {
@@ -608,11 +609,20 @@ class MainActivity : AppCompatActivity() {
         player1ScoreText.text = scorePlayer1.toString()
         player2ScoreText.text = scorePlayer2.toString()
 
-        // Update the serve indicators
-        updatePlayerDisplay() // ADD THIS LINE
+        // Update serve highlights for BOTH modes
+        updateServeHighlight()
 
         player1RemoveButton.isEnabled = scorePlayer1 > 0 && !gameOver
         player2RemoveButton.isEnabled = scorePlayer2 > 0 && !gameOver
+    }
+
+    private fun updateServeHighlight() {
+        // This works for BOTH singles and doubles
+        // In singles: isPlayer1Serving indicates which player is serving
+        // In doubles: isPlayer1Serving indicates which TEAM is serving
+
+        player1ServeHighlight.visibility = if (isPlayer1Serving) View.VISIBLE else View.INVISIBLE
+        player2ServeHighlight.visibility = if (isPlayer1Serving) View.INVISIBLE else View.VISIBLE
     }
 
     private fun updatePlayerDisplay() {
@@ -627,14 +637,13 @@ class MainActivity : AppCompatActivity() {
             if (isPlayer1Serving) {
                 team1ServeIndicator.text = "Serving: $servingPlayer"
                 team2ServeIndicator.text = "Receiving: $receivingPlayer"
-                team1ServeIcon.visibility = View.VISIBLE
-                team2ServeIcon.visibility = View.INVISIBLE
             } else {
                 team1ServeIndicator.text = "Receiving: $receivingPlayer"
                 team2ServeIndicator.text = "Serving: $servingPlayer"
-                team1ServeIcon.visibility = View.INVISIBLE
-                team2ServeIcon.visibility = View.VISIBLE
             }
+
+            // Serve highlight is already handled by updateServeHighlight()
+            // which uses isPlayer1Serving (true = team 1, false = team 2)
         } else {
             // Singles mode
             player1Name.text = playerNames.team1Player1.trim()
@@ -643,11 +652,8 @@ class MainActivity : AppCompatActivity() {
             // Clear doubles serving indicators
             team1ServeIndicator.text = ""
             team2ServeIndicator.text = ""
-            team1ServeIcon.visibility = View.INVISIBLE
-            team2ServeIcon.visibility = View.INVISIBLE
 
-            serveIndicator1.visibility = if (isPlayer1Serving) View.VISIBLE else View.INVISIBLE
-            serveIndicator2.visibility = if (isPlayer1Serving) View.INVISIBLE else View.VISIBLE
+            // Serve highlight is already handled by updateServeHighlight()
         }
     }
 
@@ -767,7 +773,8 @@ class MainActivity : AppCompatActivity() {
 
         startGameTimer()
         isNewGameJustStarted = true
-        updateScoreDisplay()
+        updateScoreDisplay() // This will update the highlight
+        updatePlayerDisplay() // ADD THIS LINE - Update text display too
 
         Toast.makeText(this, "New game to $winningPoints points!", Toast.LENGTH_SHORT).show()
     }
@@ -1554,8 +1561,8 @@ class MainActivity : AppCompatActivity() {
             findViewById<View>(R.id.scoreContainer),
             findViewById<View>(R.id.topControls),
             findViewById<View>(R.id.bottomControls),
-            findViewById<View>(R.id.serveIndicator1),
-            findViewById<View>(R.id.serveIndicator2)
+            player1ScoreText.parent as View,
+            player2ScoreText.parent as View
         )
 
         val swipeListener = View.OnTouchListener { view, event ->
@@ -1733,7 +1740,8 @@ class MainActivity : AppCompatActivity() {
                     // Reset serve positions when swapping teams
                     team1ServePosition = 0
                     team2ServePosition = 0
-                    updateScoreDisplay()
+                    updateScoreDisplay() // This calls updateServeHighlight()
+                    updatePlayerDisplay() // ADD THIS LINE - Update text display too
 
                     // FIXED: Use correct team name in doubles mode
                     val servingTeam = if (isPlayer1Serving) {
@@ -1745,7 +1753,8 @@ class MainActivity : AppCompatActivity() {
                 } else if (!gameOver) {
                     // Singles mode logic
                     isPlayer1Serving = !isPlayer1Serving
-                    updateScoreDisplay()
+                    updateScoreDisplay() // This calls updateServeHighlight()
+                    updatePlayerDisplay() // ADD THIS LINE - Update text display too
                     val serverName = if (isPlayer1Serving) player1Name.text else player2Name.text
                     showKeyPressFeedback("Serve: $serverName")
                 }
