@@ -1482,6 +1482,9 @@ class MainActivity : AppCompatActivity() {
         // Update the dialog if it's open
         updateNameEntryDialog()
 
+        // ADD THIS LINE to update the serve highlight
+        updateServeHighlight()
+
         Toast.makeText(this, "Teams swapped!", Toast.LENGTH_SHORT).show()
     }
 
