@@ -2249,6 +2249,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun playThreeSixSound() {
+        try {
+            if (soundEnabled) {
+                val threeSixSoundPlayer = MediaPlayer()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_GAME)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                    threeSixSoundPlayer.setAudioAttributes(audioAttributes)
+                }
+                val assetFileDescriptor = resources.openRawResourceFd(R.raw.three_six_sound)
+                threeSixSoundPlayer.setDataSource(
+                    assetFileDescriptor.fileDescriptor,
+                    assetFileDescriptor.startOffset,
+                    assetFileDescriptor.length
+                )
+                assetFileDescriptor.close()
+                threeSixSoundPlayer.prepare()
+                threeSixSoundPlayer.start()
+                threeSixSoundPlayer.setOnCompletionListener {
+                    it.release()
+                }
+            }
+        } catch (e: Exception) {
+        }
+    }
+
     private fun announceScore(isPlayer1Scored: Boolean) {
         if (!soundEnabled || !ttsInitialized) return
 
@@ -2287,6 +2315,11 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
+            if (bonusSoundEnabled && isThreeSixScore(servingScore, receivingScore)) {
+                playThreeSixSound()
+                return
+            }
+
             val announcement = if (isGamePointForScoringPlayer(isPlayer1Scored)) {
                 "Game point, $servingScore - $receivingScore, ${getPronouncedText(servingPlayerName)} serving ${getPronouncedText(receivingPlayerName)}"
             } else {
@@ -2310,6 +2343,11 @@ class MainActivity : AppCompatActivity() {
     private fun isNineElevenScore(servingScore: Int, receivingScore: Int): Boolean {
         return (servingScore == 9 && receivingScore == 11) ||
                 (servingScore == 11 && receivingScore == 9)
+    }
+
+    private fun isThreeSixScore(servingScore: Int, receivingScore: Int): Boolean {
+        return (servingScore == 3 && receivingScore == 6) ||
+                (servingScore == 6 && receivingScore == 3)
     }
 
     private fun isSixSevenScore(servingScore: Int, receivingScore: Int): Boolean {
