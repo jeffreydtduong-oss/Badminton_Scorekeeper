@@ -206,6 +206,7 @@ class MainActivity : AppCompatActivity() {
 
     // Sound variables
     private lateinit var scoreSoundPlayer: MediaPlayer
+    private lateinit var gamePointSoundPlayer: MediaPlayer
     private var soundEnabled = true
     private var bonusSoundEnabled = true
     private val soundResources = listOf(
@@ -2277,59 +2278,133 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun playGamePointSound(onComplete: () -> Unit) {
+        if (!soundEnabled) {
+            onComplete() // If sound is disabled, just proceed with announcement
+            return
+        }
+
+        try {
+            // Create a new MediaPlayer for game point sound
+            if (::gamePointSoundPlayer.isInitialized) {
+                gamePointSoundPlayer.release()
+            }
+            gamePointSoundPlayer = MediaPlayer()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                gamePointSoundPlayer.setAudioAttributes(audioAttributes)
+            }
+
+            // Use your custom game point sound resource
+            val assetFileDescriptor = resources.openRawResourceFd(R.raw.game_point_sound)
+            gamePointSoundPlayer.setDataSource(
+                assetFileDescriptor.fileDescriptor,
+                assetFileDescriptor.startOffset,
+                assetFileDescriptor.length
+            )
+            assetFileDescriptor.close()
+            gamePointSoundPlayer.prepare()
+
+            // Set up completion listener to trigger the announcement
+            gamePointSoundPlayer.setOnCompletionListener {
+                it.release()
+                // Play the TTS announcement after sound finishes
+                onComplete()
+            }
+
+            gamePointSoundPlayer.start()
+
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error playing game point sound: ${e.message}")
+            // If sound fails, still proceed with announcement
+            onComplete()
+        }
+    }
+
     private fun announceScore(isPlayer1Scored: Boolean) {
         if (!soundEnabled || !ttsInitialized) return
 
-        try {
-            // Apply current settings before speaking
+        // Check if this is game point for the scoring player
+        val isGamePoint = isGamePointForScoringPlayer(isPlayer1Scored)
+
+        // Get all the data we need for the announcement
+        val servingScore: Int
+        val receivingScore: Int
+        val servingPlayerName: String
+        val receivingPlayerName: String
+
+        if (isPlayer1Scored) {
+            servingScore = scorePlayer1
+            receivingScore = scorePlayer2
+            servingPlayerName = getCurrentServerName()
+            receivingPlayerName = getCurrentReceiverName()
+        } else {
+            servingScore = scorePlayer2
+            receivingScore = scorePlayer1
+            servingPlayerName = getCurrentServerName()
+            receivingPlayerName = getCurrentReceiverName()
+        }
+
+        // Build the announcement text (do this before playing sound)
+        val scoreAnnouncement: String
+        val isSixSevenExact = (servingScore == 6 && receivingScore == 7)
+
+        // Check for 6-7 OR 7-6 (for animation)
+        if (bonusSoundEnabled && isSixSevenScore(servingScore, receivingScore)) {
+            animateScoresSimple()
+        }
+
+        // Build the score part of the announcement
+        if (isSixSevenExact) {
+            scoreAnnouncement = "siiiiixxx-sevvvvvennn"
+        } else {
+            scoreAnnouncement = "${getPronouncedText("$servingScore")} - ${getPronouncedText("$receivingScore")}"
+        }
+
+        // Build the full announcement text
+        val announcementText = if (isGamePoint) {
+            "Game point, $scoreAnnouncement, ${getPronouncedText(servingPlayerName)} serving ${getPronouncedText(receivingPlayerName)}"
+        } else {
+            "$scoreAnnouncement, ${getPronouncedText(servingPlayerName)} serving ${getPronouncedText(receivingPlayerName)}"
+        }
+
+        // Check for special bonus sounds (these take priority and don't wait)
+        if (bonusSoundEnabled && isSixtyNineScore(servingScore, receivingScore)) {
+            playSixtyNineSound()
+            return
+        }
+
+        if (bonusSoundEnabled && isNineElevenScore(servingScore, receivingScore)) {
+            playNineElevenSound()
+            return
+        }
+
+        if (bonusSoundEnabled && isThreeSixScore(servingScore, receivingScore)) {
+            playThreeSixSound()
+            return
+        }
+
+        // If it's game point, play sound first then announce
+        if (isGamePoint && bonusSoundEnabled) {
+            // Apply TTS settings before speaking
             applyTTSSettings()
 
-            val servingScore: Int
-            val receivingScore: Int
-            val servingPlayerName: String
-            val receivingPlayerName: String
-
-            if (isPlayer1Scored) {
-                servingScore = scorePlayer1
-                receivingScore = scorePlayer2
-                servingPlayerName = getCurrentServerName()
-                receivingPlayerName = getCurrentReceiverName()
-            } else {
-                servingScore = scorePlayer2
-                receivingScore = scorePlayer1
-                servingPlayerName = getCurrentServerName()
-                receivingPlayerName = getCurrentReceiverName()
+            // Play the game point sound, then speak after it finishes
+            playGamePointSound {
+                // This code runs after the sound finishes
+                textToSpeech.speak(announcementText, TextToSpeech.QUEUE_FLUSH, null, null)
             }
-
-            if (bonusSoundEnabled && isSixtyNineScore(servingScore, receivingScore)) {
-                playSixtyNineSound()
-                return
+        } else {
+            // For non-game point scores, just speak immediately
+            try {
+                applyTTSSettings()
+                textToSpeech.speak(announcementText, TextToSpeech.QUEUE_FLUSH, null, null)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error announcing score: ${e.message}")
             }
-
-            if (bonusSoundEnabled && isSixSevenScore(servingScore, receivingScore)) {
-                animateScoresSimple()  // Add animation
-            }
-
-            if (bonusSoundEnabled && isNineElevenScore(servingScore, receivingScore)) {
-                playNineElevenSound()
-                return
-            }
-
-            if (bonusSoundEnabled && isThreeSixScore(servingScore, receivingScore)) {
-                playThreeSixSound()
-                return
-            }
-
-            val announcement = if (isGamePointForScoringPlayer(isPlayer1Scored)) {
-                "Game point, $servingScore - $receivingScore, ${getPronouncedText(servingPlayerName)} serving ${getPronouncedText(receivingPlayerName)}"
-            } else {
-                "${getPronouncedText("$servingScore")} - ${getPronouncedText("$receivingScore")}, ${getPronouncedText(servingPlayerName)} serving ${getPronouncedText(receivingPlayerName)}"
-            }
-
-            textToSpeech.speak(announcement, TextToSpeech.QUEUE_FLUSH, null, null)
-
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Error announcing score: ${e.message}")
         }
     }
 
@@ -2677,8 +2752,11 @@ class MainActivity : AppCompatActivity() {
             if (::scoreSoundPlayer.isInitialized) {
                 scoreSoundPlayer.release()
             }
+            if (::gamePointSoundPlayer.isInitialized) {  // Add this
+                gamePointSoundPlayer.release()
+            }
         } catch (e: Exception) {
-            Log.e("MainActivity", "Error releasing sound player: ${e.message}")
+            Log.e("MainActivity", "Error releasing sound players: ${e.message}")
         }
         if (::textToSpeech.isInitialized) {
             textToSpeech.stop()
