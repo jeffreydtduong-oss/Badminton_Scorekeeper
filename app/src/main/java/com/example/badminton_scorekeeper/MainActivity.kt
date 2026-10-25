@@ -3,6 +3,7 @@ package com.example.badmintonscorekeeper
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -30,6 +31,7 @@ import android.content.res.Configuration
 import androidx.core.app.ActivityCompat
 import android.util.Log
 import android.view.MotionEvent
+import android.view.DragEvent
 import android.view.Surface
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -83,6 +85,25 @@ data class Player(
     val name: String,
     val isFavorite: Boolean = false
 )
+
+private data class PlayerDrag(
+    val name: String,
+    val sourceSlot: Int? = null
+)
+
+private data class PlayerSelectionDraft(
+    val team1Player1: String = "",
+    val team1Player2: String = "",
+    val team2Player1: String = "",
+    val team2Player2: String = ""
+) {
+    fun toSlots(): List<String> = listOf(
+        team1Player1,
+        team1Player2,
+        team2Player1,
+        team2Player2
+    )
+}
 
 data class GameHistory(
     val playerNames: PlayerNames,
@@ -250,6 +271,7 @@ class MainActivity : AppCompatActivity() {
 
     private val playerRoster = mutableListOf<Player>()
     private val prefsPlayersKey = "playerRoster"
+    private val prefsPlayerSelectionDraftKey = "playerSelectionDraft"
     private val selectedPlayers = mutableListOf<String>()
 
     private var currentNameEntryDialog: AlertDialog? = null
@@ -1199,159 +1221,359 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPlayerSelectionDialog(parentDialogView: View, isDoublesMode: Boolean) {
         val selectionView = LayoutInflater.from(this).inflate(R.layout.player_selection_dialog, null)
-        val playerListView = selectionView.findViewById<ListView>(R.id.playerListView)
-        val uncheckAllButton = selectionView.findViewById<Button>(R.id.uncheckAllButton)
-        val deleteButton = selectionView.findViewById<Button>(R.id.deleteButton)
+        val slotIds = listOf(R.id.team1Slot1, R.id.team1Slot2, R.id.team2Slot1, R.id.team2Slot2)
+        val slots = slotIds.map { selectionView.findViewById<TextView>(it) }
+        val availablePlayersContainer =
+            selectionView.findViewById<LinearLayout>(R.id.availablePlayersContainer)
+        val swapButton = selectionView.findViewById<Button>(R.id.swapCourtSidesButton)
+        val clearCourtButton = selectionView.findViewById<Button>(R.id.clearCourtButton)
+        val selectAllButton = selectionView.findViewById<Button>(R.id.selectAllPlayersButton)
+        val deleteSelectedButton =
+            selectionView.findViewById<Button>(R.id.deleteSelectedPlayersButton)
+        val toggleDeleteModeButton =
+            selectionView.findViewById<Button>(R.id.toggleDeleteModeButton)
+        val deleteControlsLayout =
+            selectionView.findViewById<LinearLayout>(R.id.deleteControlsLayout)
+        val emptySlotLabel = "Drop player here"
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val savedDraftJson = prefs.getString(prefsPlayerSelectionDraftKey, null)
+        val initialDraft = if (savedDraftJson.isNullOrEmpty()) {
+            PlayerSelectionDraft(
+                team1Player1 = playerNames.team1Player1,
+                team1Player2 = if (isDoublesMode) playerNames.team1Player2 else "",
+                team2Player1 = playerNames.team2Player1,
+                team2Player2 = if (isDoublesMode) playerNames.team2Player2 else ""
+            )
+        } else {
+            try {
+                Gson().fromJson(savedDraftJson, PlayerSelectionDraft::class.java)
+                    ?: PlayerSelectionDraft()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading player selection draft: ${e.message}")
+                PlayerSelectionDraft()
+            }
+        }
+        val slotPlayers = initialDraft.toSlots().toMutableList()
+        if (!isDoublesMode) {
+            slotPlayers[1] = ""
+            slotPlayers[3] = ""
+        }
+        val selectedForDeletion = mutableSetOf<String>()
+        var isDeleteMode = false
+        fun saveDraft() {
+            prefs.edit().putString(
+                prefsPlayerSelectionDraftKey,
+                Gson().toJson(
+                    PlayerSelectionDraft(
+                        team1Player1 = slotPlayers[0],
+                        team1Player2 = slotPlayers[1],
+                        team2Player1 = slotPlayers[2],
+                        team2Player2 = slotPlayers[3]
+                    )
+                )
+            ).apply()
+        }
 
-        // Create adapter as a variable so we can refresh it
-        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_multiple_choice,
-            playerRoster.map { it.name })
-        playerListView.adapter = adapter
-        playerListView.choiceMode = ListView.CHOICE_MODE_MULTIPLE
+        if (!isDoublesMode) {
+            slots[1].visibility = View.GONE
+            slots[3].visibility = View.GONE
+        }
 
-        // Track selection order
-        val selectionOrder = mutableListOf<String>()
-
-        // Pre-select currently selected players and maintain selection order
-        for (i in 0 until playerRoster.size) {
-            val playerName = playerRoster[i].name
-            if (selectedPlayers.contains(playerName)) {
-                playerListView.setItemChecked(i, true)
-                // Add to selection order if not already there
-                if (!selectionOrder.contains(playerName)) {
-                    selectionOrder.add(playerName)
+        fun refreshSelection() {
+            saveDraft()
+            slots.forEachIndexed { index, slot ->
+                val name = slotPlayers[index]
+                slot.text = name.ifEmpty { emptySlotLabel }
+                slot.alpha = if (name.isEmpty()) 0.75f else 1f
+                slot.setOnClickListener {
+                    if (slotPlayers[index].isNotEmpty()) {
+                        slotPlayers[index] = ""
+                        refreshSelection()
+                    }
                 }
+                slot.setOnLongClickListener { view ->
+                    val name = slotPlayers[index]
+                    if (name.isEmpty()) {
+                        false
+                    } else {
+                        view.startDragAndDrop(
+                            ClipData.newPlainText("player", name),
+                            View.DragShadowBuilder(view),
+                            PlayerDrag(name, index),
+                            0
+                        )
+                    }
+                }
+                slot.setOnDragListener { _, event ->
+                    when (event.action) {
+                        DragEvent.ACTION_DRAG_STARTED -> event.localState is PlayerDrag
+                        DragEvent.ACTION_DRAG_ENTERED -> {
+                            slot.alpha = 0.65f
+                            true
+                        }
+                        DragEvent.ACTION_DRAG_EXITED -> {
+                            slot.alpha = 1f
+                            true
+                        }
+                        DragEvent.ACTION_DROP -> {
+                            val draggedPlayer = event.localState as? PlayerDrag
+                            if (draggedPlayer != null) {
+                                val sourceIndex = draggedPlayer.sourceSlot
+                                if (sourceIndex != null && sourceIndex != index) {
+                                    val targetName = slotPlayers[index]
+                                    slotPlayers[index] = slotPlayers[sourceIndex]
+                                    slotPlayers[sourceIndex] = targetName
+                                } else if (sourceIndex == null) {
+                                    slotPlayers.indices.forEach { otherIndex ->
+                                        if (slotPlayers[otherIndex] == draggedPlayer.name) {
+                                            slotPlayers[otherIndex] = ""
+                                        }
+                                    }
+                                    slotPlayers[index] = draggedPlayer.name
+                                }
+                                refreshSelection()
+                            }
+                            true
+                        }
+                        DragEvent.ACTION_DRAG_ENDED -> {
+                            slot.alpha = if (slotPlayers[index].isEmpty()) 0.75f else 1f
+                            true
+                        }
+                        else -> true
+                    }
+                }
+            }
+
+            availablePlayersContainer.removeAllViews()
+            playerRoster.forEach { player ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(8, 2, 8, 2)
+                    setBackgroundColor(
+                        Color.rgb(245, 245, 245)
+                    )
+                }
+                val checkbox = CheckBox(this).apply {
+                    isChecked = if (isDeleteMode) {
+                        selectedForDeletion.contains(player.name)
+                    } else {
+                        slotPlayers.contains(player.name)
+                    }
+                    contentDescription = if (isDeleteMode) {
+                        "Select ${player.name} for deletion"
+                    } else {
+                        "Assign ${player.name} to the next open court slot"
+                    }
+                    setOnCheckedChangeListener { _, checked ->
+                        if (isDeleteMode) {
+                            if (checked) selectedForDeletion.add(player.name)
+                            else selectedForDeletion.remove(player.name)
+                        } else if (checked) {
+                            if (!slotPlayers.contains(player.name)) {
+                                val assignmentOrder = if (isDoublesMode) {
+                                    listOf(0, 1, 2, 3)
+                                } else {
+                                    listOf(0, 2)
+                                }
+                                val nextOpenSlot = assignmentOrder.firstOrNull {
+                                    slotPlayers[it].isEmpty()
+                                }
+                                if (nextOpenSlot != null) {
+                                    slotPlayers[nextOpenSlot] = player.name
+                                    refreshSelection()
+                                } else {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "All court slots are filled",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    refreshSelection()
+                                }
+                            }
+                        } else {
+                            val assignedSlot = slotPlayers.indexOf(player.name)
+                            if (assignedSlot >= 0) {
+                                slotPlayers[assignedSlot] = ""
+                                refreshSelection()
+                            }
+                        }
+                    }
+                }
+                val playerChip = TextView(this).apply {
+                    text = player.name
+                    textSize = 16f
+                    setTypeface(typeface, Typeface.BOLD)
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(8, 12, 8, 12)
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener {
+                        if (isDeleteMode) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Use the checkboxes to select players for deletion",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else if (slotPlayers.contains(player.name)) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "${player.name} is already on the court",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            val assignmentOrder = if (isDoublesMode) {
+                                listOf(0, 1, 2, 3)
+                            } else {
+                                listOf(0, 2)
+                            }
+                            val nextOpenSlot = assignmentOrder.firstOrNull {
+                                slotPlayers[it].isEmpty()
+                            }
+                            if (nextOpenSlot != null) {
+                                slotPlayers[nextOpenSlot] = player.name
+                                refreshSelection()
+                            } else {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "All court slots are filled",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                    setOnLongClickListener { view ->
+                        view.startDragAndDrop(
+                            ClipData.newPlainText("player", player.name),
+                            View.DragShadowBuilder(view),
+                            PlayerDrag(player.name),
+                            0
+                        )
+                    }
+                }
+                row.addView(checkbox)
+                row.addView(
+                    playerChip,
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                )
+                availablePlayersContainer.addView(
+                    row,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                )
             }
         }
 
-        // Set up button listeners
-        uncheckAllButton.setOnClickListener {
-            // Uncheck all items
-            for (i in 0 until playerRoster.size) {
-                playerListView.setItemChecked(i, false)
-            }
-            selectedPlayers.clear()
-            selectionOrder.clear()
+        refreshSelection()
+        swapButton.setOnClickListener {
+            val team1Players = slotPlayers.subList(0, 2).toList()
+            val team2Players = slotPlayers.subList(2, 4).toList()
+            slotPlayers[0] = team2Players[0]
+            slotPlayers[1] = team2Players[1]
+            slotPlayers[2] = team1Players[0]
+            slotPlayers[3] = team1Players[1]
+            refreshSelection()
         }
 
-        // Track checkbox changes to maintain selection order
-        playerListView.setOnItemClickListener { parent, view, position, id ->
-            val playerName = playerRoster[position].name
-            val isChecked = playerListView.isItemChecked(position)
-
-            if (isChecked) {
-                // Player was checked - add to selection order
-                val maxPlayers = if (isDoublesMode) 4 else 2
-                if (!selectionOrder.contains(playerName) && selectionOrder.size < maxPlayers) {
-                    selectionOrder.add(playerName)
-                } else if (selectionOrder.size >= maxPlayers) {
-                    // Too many players selected
-                    playerListView.setItemChecked(position, false)
-                    val modeText = if (isDoublesMode) "4 players" else "2 players"
-                    Toast.makeText(this, "Maximum $modeText allowed", Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                // Player was unchecked - remove from selection order
-                selectionOrder.remove(playerName)
-            }
+        selectAllButton.setOnClickListener {
+            selectedForDeletion.clear()
+            selectedForDeletion.addAll(playerRoster.map { it.name })
+            refreshSelection()
         }
 
-        deleteButton.setOnClickListener {
-            // Delete selected players and refresh the list
-            val playersToDelete = mutableListOf<Player>()
+        toggleDeleteModeButton.setOnClickListener {
+            isDeleteMode = !isDeleteMode
+            selectedForDeletion.clear()
+            deleteControlsLayout.visibility = if (isDeleteMode) View.VISIBLE else View.GONE
+            toggleDeleteModeButton.text =
+                if (isDeleteMode) "Done Selecting" else "Select Players to Delete"
+            refreshSelection()
+        }
 
-            // Find which players are checked for deletion
-            for (i in 0 until playerRoster.size) {
-                if (playerListView.isItemChecked(i)) {
-                    playersToDelete.add(playerRoster[i])
-                }
-            }
-
+        deleteSelectedButton.setOnClickListener {
+            val playersToDelete = playerRoster.filter { selectedForDeletion.contains(it.name) }
             if (playersToDelete.isEmpty()) {
-                Toast.makeText(this, "No players selected for deletion", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Select players to delete", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            // Show confirmation dialog
             AlertDialog.Builder(this, R.style.CustomDialogTheme)
-                .setTitle("Delete Players")
-                .setMessage("Delete ${playersToDelete.size} player(s)?\n\n${playersToDelete.joinToString("\n") { it.name }}")
-                .setPositiveButton("Delete") { dialog, which ->
-                    // Remove from roster
-                    playerRoster.removeAll(playersToDelete)
-
-                    // Remove from selected players and selection order
-                    playersToDelete.forEach { player ->
-                        selectedPlayers.remove(player.name)
-                        selectionOrder.remove(player.name)
+                .setTitle("Delete ${playersToDelete.size} Players")
+                .setMessage("Delete the selected players from the roster?")
+                .setPositiveButton("Delete") { _, _ ->
+                    val namesToDelete = playersToDelete.map { it.name }.toSet()
+                    playerRoster.removeAll(playersToDelete.toSet())
+                    slotPlayers.indices.forEach { index ->
+                        if (slotPlayers[index] in namesToDelete) slotPlayers[index] = ""
                     }
-
-                    // Save changes
+                    selectedPlayers.removeAll(namesToDelete)
+                    selectedForDeletion.clear()
                     savePlayerRoster()
-
-                    // Refresh the adapter
-                    adapter.clear()
-                    adapter.addAll(playerRoster.map { it.name })
-                    adapter.notifyDataSetChanged()
-
-                    // Update check states for remaining players
-                    for (i in 0 until playerRoster.size) {
-                        playerListView.setItemChecked(i, selectedPlayers.contains(playerRoster[i].name))
-                    }
-
+                    refreshSelection()
                     Toast.makeText(this, "Players deleted", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("Cancel", null)
                 .show()
         }
 
+        clearCourtButton.setOnClickListener {
+            slotPlayers.indices.forEach { slotPlayers[it] = "" }
+            refreshSelection()
+        }
+
         val selectionDialog = AlertDialog.Builder(this, R.style.CustomDialogTheme)
             .setView(selectionView)
-            .setPositiveButton("OK") { dialog, which ->
-                // Get selected players in the order they were selected
-                selectedPlayers.clear()
-                selectedPlayers.addAll(selectionOrder)
-
-                if (isDoublesMode) {
-                    // For doubles: assign 4 players to teams
-                    if (selectedPlayers.size == 4) {
-                        playerNames = playerNames.copy(
-                            team1Player1 = selectedPlayers[0],
-                            team1Player2 = selectedPlayers[1],
-                            team2Player1 = selectedPlayers[2],
-                            team2Player2 = selectedPlayers[3],
-                            isDoubles = true
-                        )
-                        // Update the spinners with new player names
-                        updateTeamPreview(parentDialogView, isDoublesMode)
-                    }
-                } else {
-                    // For singles: assign 2 players
-                    if (selectedPlayers.size == 2) {
-                        playerNames = playerNames.copy(
-                            team1Player1 = selectedPlayers[0],
-                            team2Player1 = selectedPlayers[1],
-                            isDoubles = false
-                        )
-                    }
-                }
-
-                updateTeamPreview(parentDialogView, isDoublesMode)
-            }
+            .setPositiveButton("Save", null)
             .setNegativeButton("Cancel", null)
             .create()
 
-        // Calculate optimal height for 10+ items
+        selectionDialog.setOnShowListener {
+            selectionDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val selectedCount = slotPlayers.count { it.isNotEmpty() }
+                val requiredCount = if (isDoublesMode) 4 else 2
+                if (selectedCount != requiredCount) {
+                    Toast.makeText(
+                        this,
+                        "Please assign exactly $requiredCount players",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                selectedPlayers.clear()
+                if (isDoublesMode) {
+                    selectedPlayers.addAll(slotPlayers)
+                    playerNames = playerNames.copy(
+                        team1Player1 = slotPlayers[0],
+                        team1Player2 = slotPlayers[1],
+                        team2Player1 = slotPlayers[2],
+                        team2Player2 = slotPlayers[3],
+                        isDoubles = true
+                    )
+                } else {
+                    selectedPlayers.addAll(listOf(slotPlayers[0], slotPlayers[2]))
+                    playerNames = playerNames.copy(
+                        team1Player1 = slotPlayers[0],
+                        team2Player1 = slotPlayers[2],
+                        isDoubles = false
+                    )
+                }
+                saveDraft()
+                updateTeamPreview(parentDialogView, isDoublesMode)
+                selectionDialog.dismiss()
+            }
+        }
+
         val displayMetrics = resources.displayMetrics
         val screenHeight = displayMetrics.heightPixels
-        val optimalHeight = (screenHeight * 0.75).toInt() // 75% of screen height
-
+        val optimalHeight = (screenHeight * 0.75).toInt()
+        selectionDialog.show()
         selectionDialog.window?.setLayout(
             (displayMetrics.widthPixels * 0.95).toInt(),
             optimalHeight
         )
-
-        selectionDialog.show()
     }
 
     private fun initializeServingState() {
