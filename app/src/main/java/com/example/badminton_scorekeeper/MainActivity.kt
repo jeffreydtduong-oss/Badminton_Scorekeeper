@@ -1761,6 +1761,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        swapPlayerSelectionDraftSides(isDoublesMode)
         updatePlayerDisplay()
         savePlayerNamesToPrefs()
 
@@ -1771,6 +1772,39 @@ class MainActivity : AppCompatActivity() {
         updateServeHighlight()
 
         Toast.makeText(this, "Teams swapped!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun swapPlayerSelectionDraftSides(isDoubles: Boolean) {
+        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+        val savedDraftJson = prefs.getString(prefsPlayerSelectionDraftKey, null) ?: return
+        val draft = try {
+            Gson().fromJson(savedDraftJson, PlayerSelectionDraft::class.java)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error swapping player selection draft: ${e.message}")
+            null
+        }
+
+        if (draft == null) {
+            prefs.edit().remove(prefsPlayerSelectionDraftKey).apply()
+            return
+        }
+
+        val swappedDraft = if (isDoubles) {
+            draft.copy(
+                team1Player1 = draft.team2Player1,
+                team1Player2 = draft.team2Player2,
+                team2Player1 = draft.team1Player1,
+                team2Player2 = draft.team1Player2
+            )
+        } else {
+            draft.copy(
+                team1Player1 = draft.team2Player1,
+                team2Player1 = draft.team1Player1
+            )
+        }
+        prefs.edit()
+            .putString(prefsPlayerSelectionDraftKey, Gson().toJson(swappedDraft))
+            .apply()
     }
 
     private fun updateNameEntryDialog() {
