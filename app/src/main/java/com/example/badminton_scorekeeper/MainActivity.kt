@@ -50,6 +50,9 @@ import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.view.Gravity
 import android.widget.*
@@ -90,6 +93,42 @@ private data class PlayerDrag(
     val name: String,
     val sourceSlot: Int? = null
 )
+
+private class PlayerChipDragShadow(
+    private val label: String,
+    private val density: Float
+) : View.DragShadowBuilder() {
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = 16f * density
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+    private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(46, 125, 50)
+    }
+    private val horizontalPadding = 14f * density
+    private val verticalPadding = 9f * density
+    private val cornerRadius = 8f * density
+
+    override fun onProvideShadowMetrics(outShadowSize: android.graphics.Point, outShadowTouchPoint: android.graphics.Point) {
+        val width = (textPaint.measureText(label) + horizontalPadding * 2).toInt()
+        val height = (textPaint.textSize + verticalPadding * 2).toInt()
+        outShadowSize.set(width, height)
+        outShadowTouchPoint.set(width / 2, height / 2)
+    }
+
+    override fun onDrawShadow(canvas: Canvas) {
+        val width = textPaint.measureText(label) + horizontalPadding * 2
+        val height = textPaint.textSize + verticalPadding * 2
+        canvas.drawRoundRect(RectF(0f, 0f, width, height), cornerRadius, cornerRadius, backgroundPaint)
+        canvas.drawText(
+            label,
+            horizontalPadding,
+            verticalPadding + textPaint.textSize * 0.8f,
+            textPaint
+        )
+    }
+}
 
 private data class PlayerSelectionDraft(
     val team1Player1: String = "",
@@ -1445,7 +1484,7 @@ class MainActivity : AppCompatActivity() {
                     setOnLongClickListener { view ->
                         view.startDragAndDrop(
                             ClipData.newPlainText("player", player.name),
-                            View.DragShadowBuilder(view),
+                            PlayerChipDragShadow(player.name, resources.displayMetrics.density),
                             PlayerDrag(player.name),
                             0
                         )
