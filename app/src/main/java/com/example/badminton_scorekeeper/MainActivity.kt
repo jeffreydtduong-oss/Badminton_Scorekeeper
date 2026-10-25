@@ -1384,32 +1384,88 @@ class MainActivity : AppCompatActivity() {
             }
 
             availablePlayersContainer.removeAllViews()
-            playerRoster.forEach { player ->
-                val row = LinearLayout(this).apply {
+            val isLandscape =
+                resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            val rosterColumns = if (isLandscape) 2 else 1
+            playerRoster.chunked(rosterColumns).forEach { playersInRow ->
+                val playerRow = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(8, 2, 8, 2)
-                    setBackgroundColor(
-                        Color.rgb(245, 245, 245)
-                    )
                 }
-                val checkbox = CheckBox(this).apply {
-                    isChecked = if (isDeleteMode) {
-                        selectedForDeletion.contains(player.name)
-                    } else {
-                        slotPlayers.contains(player.name)
+                playersInRow.forEach { player ->
+                    val playerItem = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(4, 2, 4, 2)
+                        setBackgroundColor(Color.rgb(245, 245, 245))
                     }
-                    contentDescription = if (isDeleteMode) {
-                        "Select ${player.name} for deletion"
-                    } else {
-                        "Assign ${player.name} to the next open court slot"
+                    val checkbox = CheckBox(this).apply {
+                        isChecked = if (isDeleteMode) {
+                            selectedForDeletion.contains(player.name)
+                        } else {
+                            slotPlayers.contains(player.name)
+                        }
+                        contentDescription = if (isDeleteMode) {
+                            "Select ${player.name} for deletion"
+                        } else {
+                            "Assign ${player.name} to the next open court slot"
+                        }
+                        setOnCheckedChangeListener { _, checked ->
+                            if (isDeleteMode) {
+                                if (checked) selectedForDeletion.add(player.name)
+                                else selectedForDeletion.remove(player.name)
+                            } else if (checked) {
+                                if (!slotPlayers.contains(player.name)) {
+                                    val assignmentOrder = if (isDoublesMode) {
+                                        listOf(0, 1, 2, 3)
+                                    } else {
+                                        listOf(0, 2)
+                                    }
+                                    val nextOpenSlot = assignmentOrder.firstOrNull {
+                                        slotPlayers[it].isEmpty()
+                                    }
+                                    if (nextOpenSlot != null) {
+                                        slotPlayers[nextOpenSlot] = player.name
+                                    } else {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "All court slots are filled",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    refreshSelection()
+                                }
+                            } else {
+                                val assignedSlot = slotPlayers.indexOf(player.name)
+                                if (assignedSlot >= 0) {
+                                    slotPlayers[assignedSlot] = ""
+                                    refreshSelection()
+                                }
+                            }
+                        }
                     }
-                    setOnCheckedChangeListener { _, checked ->
-                        if (isDeleteMode) {
-                            if (checked) selectedForDeletion.add(player.name)
-                            else selectedForDeletion.remove(player.name)
-                        } else if (checked) {
-                            if (!slotPlayers.contains(player.name)) {
+                    val playerChip = TextView(this).apply {
+                        text = player.name
+                        textSize = 16f
+                        setTypeface(typeface, Typeface.BOLD)
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(8, 12, 8, 12)
+                        isClickable = true
+                        isFocusable = true
+                        setOnClickListener {
+                            if (isDeleteMode) {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Use the checkboxes to select players for deletion",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else if (slotPlayers.contains(player.name)) {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "${player.name} is already on the court",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
                                 val assignmentOrder = if (isDoublesMode) {
                                     listOf(0, 1, 2, 3)
                                 } else {
@@ -1427,76 +1483,43 @@ class MainActivity : AppCompatActivity() {
                                         "All court slots are filled",
                                         Toast.LENGTH_SHORT
                                     ).show()
-                                    refreshSelection()
                                 }
                             }
-                        } else {
-                            val assignedSlot = slotPlayers.indexOf(player.name)
-                            if (assignedSlot >= 0) {
-                                slotPlayers[assignedSlot] = ""
-                                refreshSelection()
-                            }
+                        }
+                        setOnLongClickListener { view ->
+                            view.startDragAndDrop(
+                                ClipData.newPlainText("player", player.name),
+                                PlayerChipDragShadow(
+                                    player.name,
+                                    resources.displayMetrics.density
+                                ),
+                                PlayerDrag(player.name),
+                                0
+                            )
                         }
                     }
-                }
-                val playerChip = TextView(this).apply {
-                    text = player.name
-                    textSize = 16f
-                    setTypeface(typeface, Typeface.BOLD)
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(8, 12, 8, 12)
-                    isClickable = true
-                    isFocusable = true
-                    setOnClickListener {
-                        if (isDeleteMode) {
-                            Toast.makeText(
-                                this@MainActivity,
-                                "Use the checkboxes to select players for deletion",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else if (slotPlayers.contains(player.name)) {
-                            Toast.makeText(
-                                this@MainActivity,
-                                "${player.name} is already on the court",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            val assignmentOrder = if (isDoublesMode) {
-                                listOf(0, 1, 2, 3)
-                            } else {
-                                listOf(0, 2)
-                            }
-                            val nextOpenSlot = assignmentOrder.firstOrNull {
-                                slotPlayers[it].isEmpty()
-                            }
-                            if (nextOpenSlot != null) {
-                                slotPlayers[nextOpenSlot] = player.name
-                                refreshSelection()
-                            } else {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "All court slots are filled",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    }
-                    setOnLongClickListener { view ->
-                        view.startDragAndDrop(
-                            ClipData.newPlainText("player", player.name),
-                            PlayerChipDragShadow(player.name, resources.displayMetrics.density),
-                            PlayerDrag(player.name),
-                            0
+                    playerItem.addView(checkbox)
+                    playerItem.addView(
+                        playerChip,
+                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    )
+                    playerRow.addView(
+                        playerItem,
+                        LinearLayout.LayoutParams(
+                            0,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            1f
                         )
-                    }
+                    )
                 }
-                row.addView(checkbox)
-                row.addView(
-                    playerChip,
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                )
+                if (playersInRow.size < rosterColumns) {
+                    playerRow.addView(
+                        View(this),
+                        LinearLayout.LayoutParams(0, 1, 1f)
+                    )
+                }
                 availablePlayersContainer.addView(
-                    row,
+                    playerRow,
                     LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
