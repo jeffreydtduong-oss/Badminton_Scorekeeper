@@ -175,21 +175,45 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
+            android:weightSum="3"
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/clearCourtButton"
+                android:id="@+id/randomizeTeamsButton"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_weight="1"
-                android:text="Clear Court" />
+                android:gravity="center"
+                android:textSize="14sp"
+                android:singleLine="true"
+                android:backgroundTint="@color/randomize_button"
+                android:text="Random"
+                android:textColor="@color/white"
+                android:contentDescription="Randomize teams" />
 
             <Button
                 android:id="@+id/swapCourtSidesButton"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_weight="1"
-                android:text="Swap Teams" />
+                android:gravity="center"
+                android:textSize="14sp"
+                android:singleLine="true"
+                android:backgroundTint="@color/swap_button"
+                android:text="Swap"
+                android:textColor="@color/white"
+                android:contentDescription="Swap teams" />
+
+            <Button
+                android:id="@+id/clearCourtButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textSize="14sp"
+                android:singleLine="true"
+                android:text="Clear"
+                android:contentDescription="Clear court" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

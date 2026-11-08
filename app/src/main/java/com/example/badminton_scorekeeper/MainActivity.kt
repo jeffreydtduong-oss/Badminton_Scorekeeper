@@ -1264,6 +1264,8 @@ class MainActivity : AppCompatActivity() {
         val slots = slotIds.map { selectionView.findViewById<TextView>(it) }
         val availablePlayersContainer =
             selectionView.findViewById<LinearLayout>(R.id.availablePlayersContainer)
+        val randomizeTeamsButton =
+            selectionView.findViewById<Button>(R.id.randomizeTeamsButton)
         val swapButton = selectionView.findViewById<Button>(R.id.swapCourtSidesButton)
         val clearCourtButton = selectionView.findViewById<Button>(R.id.clearCourtButton)
         val selectAllButton = selectionView.findViewById<Button>(R.id.selectAllPlayersButton)
@@ -1454,11 +1456,12 @@ class MainActivity : AppCompatActivity() {
                         isFocusable = true
                         setOnClickListener {
                             if (isDeleteMode) {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Use the checkboxes to select players for deletion",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                if (selectedForDeletion.contains(player.name)) {
+                                    selectedForDeletion.remove(player.name)
+                                } else {
+                                    selectedForDeletion.add(player.name)
+                                }
+                                refreshSelection()
                             } else if (slotPlayers.contains(player.name)) {
                                 Toast.makeText(
                                     this@MainActivity,
@@ -1529,6 +1532,28 @@ class MainActivity : AppCompatActivity() {
         }
 
         refreshSelection()
+        randomizeTeamsButton.setOnClickListener {
+            val requiredCount = if (isDoublesMode) 4 else 2
+            if (playerRoster.size < requiredCount) {
+                Toast.makeText(
+                    this,
+                    "At least $requiredCount players are needed",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            val assignmentOrder = if (isDoublesMode) {
+                listOf(0, 1, 2, 3)
+            } else {
+                listOf(0, 2)
+            }
+            val randomizedPlayers = playerRoster.shuffled().take(requiredCount)
+            assignmentOrder.forEachIndexed { index, slot ->
+                slotPlayers[slot] = randomizedPlayers[index].name
+            }
+            refreshSelection()
+        }
         swapButton.setOnClickListener {
             val team1Players = slotPlayers.subList(0, 2).toList()
             val team2Players = slotPlayers.subList(2, 4).toList()

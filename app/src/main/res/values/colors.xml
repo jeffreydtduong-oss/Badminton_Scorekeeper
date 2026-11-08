@@ -11,4 +11,6 @@
     <color name="red">#F44336</color>
     <color name="orange">#FF9800</color>
     <color name="blue">#2196F3</color>
+    <color name="randomize_button">#2E7D32</color>
+    <color name="swap_button">#1565C0</color>
 </resources>
