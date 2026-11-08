@@ -1,18 +1,73 @@
-This app is only compatible with Android phones/tablets.
+# Badminton Scorekeeper
 
-Once this device is connected with a Bluetooth remote controller, user can update scores remotely for Badminton score keeping.
+An Android scorekeeper for badminton singles and doubles. Keep score from the
+phone or tablet, or use a paired Bluetooth remote that sends supported key
+events.
 
-Below are the features of this app:
-- Update scores remotely while playing Badminton in real time
-- Can choose amoung a typical set of points to win in Badminton (i.e. 3, 7, 11, 15, 21)
-- Respects the "Win by 2" rule, to a maximum of 30 points
-- Has sound functionality, where it will announce the score after each point
-- Also has bonus sounds for certain scores, as well as a randomized sound when a game is won
-- Can input names of the player/team for both sides
-- There is a doubles mode toggle, and when enabled, it will also keep track of who should be serving and receiving
-- User can swap names if the side of the court changes
-- History of scores are tracked whenever a game is won. It is grouped by Day, and a maximum of 150 games can be stored
-- These games are also tracked in Stats section, and can be filtered by All Time, Last 150 games, or Last 24 hours
-- History records can be deleted one-by-one or all at once. Note that one by one deletions remove the game from Stats in all 3 filter types (All Time, Last 150 games, Last 24 hours). Clearing Recent History doesn't clear All Time stats, but does clear Last 150 games and Last 24 hours stats. Clearing All Time stats only clears the All Time stats, it doesn't clear Last 150 games or Last 24 hours stats.
-- In the All Time filter, user can export the data into CSV format (Overall Stats, Head-To-Head Stats, Metadata, and Game History are what gets exported). If the user likes, they can clear all data in the app settings to reduce the amount of storage used on the phone/tablet
-- User can also adjust the Text-to-Speech settings to alter language, speech rate, and pitch. User can also introduce custom pronunciations mapped to specific names
+## Features
+
+### Scoring
+
+- Choose a game target of 3, 7, 11, 15, or 21 points.
+- Applies the win-by-two rule, with a hard cap of 30 points.
+- Add or remove points from either side and undo the last scoring action.
+- Tracks the server in singles and the serving team and player in doubles.
+- Swap sides without losing the current score.
+- Configure player and team names, and reset or start another game.
+
+### Players and teams
+
+- Save and reuse player names from the player roster.
+- Select players for singles or doubles.
+- Drag players between court positions, randomize teams, swap sides, or clear
+  the court while setting up a match.
+- Add players to or remove players from the roster.
+
+### Sounds and speech
+
+- Toggle score announcements and bonus sounds independently.
+- Hear spoken scores after points, special score sounds, and a randomized
+  sound when a game is won.
+- Set the text-to-speech language/accent, speech rate, and pitch.
+- Add custom pronunciations for player names, view saved pronunciations, and
+  test the voice settings.
+
+### Game history and statistics
+
+- Completed games are saved in recent history, grouped by date, up to 150 games.
+- Review game results and delete individual history records or clear recent
+  history.
+- View singles and doubles statistics for all time, the last 150 games, or the
+  last 24 hours, including player and head-to-head records.
+- Export all-time data as CSV files for overall statistics, head-to-head
+  statistics, metadata, and game history.
+- Clear all-time statistics separately from recent game history.
+
+## Getting started
+
+1. Install and open the app on an Android phone or tablet.
+2. Set up player names and choose the game target.
+3. Use the on-screen score controls to keep score. Enable doubles mode and
+   choose four players for a doubles match.
+4. To use a remote, pair it with Android first, then use its supported buttons
+   to control scoring. The main screen displays the available key shortcuts.
+
+## Requirements
+
+- Android 7.0 (API 24) or later.
+- Android Studio to build the project from source.
+
+## Build from source
+
+Open the project in Android Studio and run the `app` configuration, or build
+from the repository root with the Gradle wrapper:
+
+```shell
+./gradlew assembleDebug
+```
+
+On Windows, use:
+
+```powershell
+.\gradlew.bat assembleDebug
+```
